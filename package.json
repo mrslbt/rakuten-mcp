@@ -1,0 +1,36 @@
+{
+  "name": "rakuten-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Rakuten APIs. Search products, books, hotels, and rankings.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "rakuten-mcp": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node18 --clean",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": ["mcp", "rakuten", "japan", "ecommerce", "ai-agents"],
+  "author": "Marsel Bait",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrslbt/rakuten-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
