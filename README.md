@@ -1,5 +1,7 @@
 # rakuten-mcp
 
+[![rakuten-mcp MCP server](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp/badges/score.svg)](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp)
+
 MCP server for [Rakuten Web Service APIs](https://webservice.rakuten.co.jp/).
 
 Search Japan's largest e-commerce marketplace, plus Rakuten Books and Rakuten Travel. Seven tools, three services, one install.
