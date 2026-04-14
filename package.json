@@ -1,6 +1,7 @@
 {
   "name": "rakuten-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "mcpName": "io.github.mrslbt/rakuten-mcp",
   "description": "MCP server for Rakuten APIs. Search products, books, hotels, and rankings.",
   "type": "module",
   "main": "dist/index.js",
