@@ -11,8 +11,7 @@ function getAppId(): string {
   const appId = process.env.RAKUTEN_APP_ID;
   if (!appId) {
     throw new Error(
-      "RAKUTEN_APP_ID environment variable is required. " +
-        "Get one at https://webservice.rakuten.co.jp/"
+      "RAKUTEN_APP_ID not set. Get one free at https://webservice.rakuten.co.jp/"
     );
   }
   return appId;
@@ -22,8 +21,7 @@ function getAccessKey(): string {
   const key = process.env.RAKUTEN_ACCESS_KEY;
   if (!key) {
     throw new Error(
-      "RAKUTEN_ACCESS_KEY environment variable is required. " +
-        "Get one at https://webservice.rakuten.co.jp/"
+      "RAKUTEN_ACCESS_KEY not set. Get one free at https://webservice.rakuten.co.jp/"
     );
   }
   return key;
@@ -619,6 +617,9 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Rakuten MCP server running on stdio");
+  if (!process.env.RAKUTEN_APP_ID || !process.env.RAKUTEN_ACCESS_KEY) {
+    console.error("Warning: RAKUTEN_APP_ID and/or RAKUTEN_ACCESS_KEY not set. Tools will fail until configured. Get your keys at https://webservice.rakuten.co.jp/");
+  }
 }
 
 main().catch((err) => {
