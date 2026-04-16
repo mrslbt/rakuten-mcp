@@ -105,6 +105,14 @@ Find books by Haruki Murakami on Rakuten Books
 村上春樹の本を楽天ブックスで探して
 ```
 
+## More MCPs
+
+| MCP | What it does |
+|-----|-------------|
+| [rippr](https://github.com/mrslbt/rippr) | YouTube transcript ripper for humans and AI agents |
+| [Japan UX](https://github.com/mrslbt/japan-ux-mcp) | Japanese UX rules for AI — forms, keigo, typography, trust signals |
+| [Xendit](https://github.com/mrslbt/xendit-mcp) | Xendit payment APIs — invoices, disbursements, balances |
+
 ## License
 
 MIT
