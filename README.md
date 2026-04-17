@@ -101,6 +101,10 @@ Find books by Haruki Murakami on Rakuten Books.
 村上春樹の本を楽天ブックスで探して。
 ```
 
+## Disclaimer
+
+This is an unofficial MCP server. Not affiliated with or endorsed by Rakuten Group, Inc.
+
 ## License
 
 [MIT](LICENSE)
