@@ -18,13 +18,17 @@ Or run on demand with `npx rakuten-mcp`.
 
 ## Configuration
 
-1. Register at [Rakuten Web Service](https://webservice.rakuten.co.jp/).
-2. Create an application to get an Application ID and Access Key.
+1. Sign in at [Rakuten Web Service](https://webservice.rakuten.co.jp/) and click **+ New App**.
+2. Pick **Web Application** as the type, set Allowed Websites to `github.com` (and any other domain you'll send the `Origin` header from), and tick the API scopes you need (Ichiba, Books, Travel).
+3. Copy the **Application ID** (UUID) and **Access Key** from the app dashboard.
 
 | Variable | Required | Description |
 |---|---|---|
-| `RAKUTEN_APP_ID` | yes | Application ID |
-| `RAKUTEN_ACCESS_KEY` | yes | Access Key |
+| `RAKUTEN_APP_ID` | yes | Application ID (UUID format) |
+| `RAKUTEN_ACCESS_KEY` | yes | Access Key (`pk_...`) |
+| `RAKUTEN_ORIGIN` | no | Origin/Referer header sent with every request. Defaults to `https://github.com`. Must match one of the Allowed Websites you configured on the app. |
+
+> **Note:** Rakuten migrated their API platform in 2026. Old-format numeric Application IDs no longer work. If you have a pre-2026 numeric app ID, you must register a new app to get the UUID + Access Key pair this server requires.
 
 ### Claude Desktop
 
@@ -65,7 +69,6 @@ Add to `~/.cursor/mcp.json` with the same shape as Claude Desktop.
 | `search_books` | Search Rakuten Books by title, author, or ISBN. |
 | `search_travel` | Search hotels on Rakuten Travel by keyword. |
 | `search_travel_vacancy` | Search available rooms with date, price, and location filters. |
-| `get_product_reviews` | Read product reviews with rating and date sorting. |
 
 ## Prompts
 
@@ -74,7 +77,6 @@ Add to `~/.cursor/mcp.json` with the same shape as Claude Desktop.
 | `search_products` | Search for products with optional price filters. |
 | `compare_products` | Compare products sorted by reviews or price. |
 | `category_bestsellers` | Bestseller ranking for a category. |
-| `product_reviews` | Summarize reviews for a product. |
 | `find_hotel` | Find hotels available on specific dates. |
 | `budget_hotel` | Find hotels within a budget. |
 | `find_book` | Search for a book by title, author, or ISBN. |
@@ -107,7 +109,7 @@ Find books by Haruki Murakami on Rakuten Books.
 
 ## Safety
 
-All tools in this server are read-only searches against the Rakuten Web Service API. No tool creates, modifies, or deletes any resource. Rakuten's terms of use and rate limits still apply. Products and reviews returned by the API may be promotional; treat results as suggestions, not endorsements, and verify prices and availability on the Rakuten site before acting on them.
+All tools in this server are read-only searches against the Rakuten Web Service API. No tool creates, modifies, or deletes any resource. Rakuten enforces a roughly 1 QPS rate limit per app ID; in practice this matches conversational MCP usage but rapid-fire batch calls will get HTTP 429 responses. Products and rankings returned by the API may be promotional; treat results as suggestions, not endorsements, and verify prices and availability on the Rakuten site before acting on them.
 
 ## Disclaimer
 

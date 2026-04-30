@@ -4,8 +4,20 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const RAKUTEN_API_BASE = "https://app.rakuten.co.jp/services/api";
-const RAKUTEN_TRAVEL_API_BASE = "https://openapi.rakuten.co.jp/engine/api";
+// Rakuten migrated their API platform in early 2026.
+// All endpoints now live under openapi.rakuten.co.jp under different
+// namespaces. The new system requires Origin + Referer headers matching
+// the "Allowed websites" configured on the app, and a UUID applicationId
+// plus an accessKey query parameter (or accessKey header).
+const ENDPOINTS = {
+  ichibaItemSearch: "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401",
+  ichibaItemRanking: "https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601",
+  ichibaGenreSearch: "https://openapi.rakuten.co.jp/ichibagt/api/IchibaGenre/Search/20170711",
+  booksTotalSearch: "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404",
+  booksBookSearch: "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404",
+  travelKeywordHotelSearch: "https://openapi.rakuten.co.jp/engine/api/Travel/KeywordHotelSearch/20170426",
+  travelVacantHotelSearch: "https://openapi.rakuten.co.jp/engine/api/Travel/VacantHotelSearch/20170426",
+} as const;
 
 function getAppId(): string {
   const appId = process.env.RAKUTEN_APP_ID;
@@ -27,26 +39,38 @@ function getAccessKey(): string {
   return key;
 }
 
+// The Origin/Referer must match a domain registered on the Rakuten app.
+// Defaults to the project's GitHub repo. Override with RAKUTEN_ORIGIN when
+// running an app whose Allowed Websites list does not include github.com.
+function getOrigin(): string {
+  return process.env.RAKUTEN_ORIGIN ?? "https://github.com";
+}
+
 async function rakutenRequest(
-  endpoint: string,
-  params: Record<string, string> = {},
-  baseUrl: string = RAKUTEN_API_BASE
+  endpointUrl: string,
+  params: Record<string, string> = {}
 ): Promise<unknown> {
   const appId = getAppId();
   const accessKey = getAccessKey();
+  const origin = getOrigin();
   const searchParams = new URLSearchParams({
     applicationId: appId,
     accessKey,
     format: "json",
     ...params,
   });
-  const url = `${baseUrl}${endpoint}?${searchParams}`;
-  const res = await fetch(url);
+  const url = `${endpointUrl}?${searchParams}`;
+  const res = await fetch(url, {
+    headers: {
+      Origin: origin,
+      Referer: origin,
+    },
+  });
 
   if (!res.ok) {
     const status = res.status;
-    await res.text();
-    throw new Error(`Rakuten API error (HTTP ${status}) on ${endpoint}`);
+    const body = await res.text();
+    throw new Error(`Rakuten API error (HTTP ${status}) on ${endpointUrl}: ${body.slice(0, 200)}`);
   }
 
   const text = await res.text();
@@ -54,7 +78,7 @@ async function rakutenRequest(
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`Rakuten API returned malformed JSON on ${endpoint}`);
+    throw new Error(`Rakuten API returned malformed JSON on ${endpointUrl}`);
   }
 }
 
@@ -107,7 +131,7 @@ server.tool(
     if (maxPrice !== undefined) params.maxPrice = String(maxPrice);
 
     const data = (await rakutenRequest(
-      "/IchibaItem/Search/20220601",
+      ENDPOINTS.ichibaItemSearch,
       params
     )) as { count?: number; Items?: Array<{ Item: Record<string, unknown> }> };
 
@@ -148,7 +172,7 @@ server.tool(
       .describe("Genre ID (0 for overall ranking)"),
   },
   async ({ genreId }) => {
-    const data = (await rakutenRequest("/IchibaItem/Ranking/20220601", {
+    const data = (await rakutenRequest(ENDPOINTS.ichibaItemRanking, {
       genreId,
     })) as { Items?: Array<{ Item: Record<string, unknown> }> };
 
@@ -177,7 +201,7 @@ server.tool(
       .describe("Parent genre ID (0 for top-level)"),
   },
   async ({ genreId }) => {
-    const data = (await rakutenRequest("/IchibaGenre/Search/20140222", {
+    const data = (await rakutenRequest(ENDPOINTS.ichibaGenreSearch, {
       genreId,
     })) as {
       current?: Record<string, unknown>;
@@ -238,8 +262,8 @@ server.tool(
     }
 
     const endpoint = useTotal
-      ? "/BooksTotal/Search/20170404"
-      : "/BooksBook/Search/20170404";
+      ? ENDPOINTS.booksTotalSearch
+      : ENDPOINTS.booksBookSearch;
 
     const data = (await rakutenRequest(endpoint, params)) as {
       Items?: Array<{ Item: Record<string, unknown> }>;
@@ -274,9 +298,8 @@ server.tool(
   },
   async ({ keyword, hits, page }) => {
     const data = (await rakutenRequest(
-      "/Travel/KeywordHotelSearch/20170426",
-      { keyword, hits: String(hits), page: String(page) },
-      RAKUTEN_TRAVEL_API_BASE
+      ENDPOINTS.travelKeywordHotelSearch,
+      { keyword, hits: String(hits), page: String(page) }
     )) as { hotels?: Array<{ hotel: Array<{ hotelBasicInfo: Record<string, unknown> }> }> };
 
     const hotels =
@@ -356,9 +379,8 @@ server.tool(
     if (maxCharge !== undefined) params.maxCharge = String(maxCharge);
 
     const data = (await rakutenRequest(
-      "/Travel/VacantHotelSearch/20170426",
-      params,
-      RAKUTEN_TRAVEL_API_BASE
+      ENDPOINTS.travelVacantHotelSearch,
+      params
     )) as { hotels?: Array<{ hotel: Array<{ hotelBasicInfo?: Record<string, unknown>; roomInfo?: Array<{ roomBasicInfo?: Record<string, unknown>; dailyCharge?: Record<string, unknown> }> }> }> };
 
     const hotels =
@@ -382,40 +404,10 @@ server.tool(
   }
 );
 
-server.tool(
-  "get_product_reviews",
-  "Get reviews for a specific Rakuten product",
-  {
-    itemCode: z.string().describe("Rakuten item code (shop:itemId format)"),
-    hits: z.number().min(1).max(30).default(10).describe("Number of reviews"),
-    sort: z
-      .enum(["+reviewDate", "-reviewDate", "+reviewPoint", "-reviewPoint"])
-      .default("-reviewDate")
-      .describe("Sort order"),
-  },
-  async ({ itemCode, hits, sort }) => {
-    const data = (await rakutenRequest(
-      "/IchibaItem/Review/20220601",
-      {
-        itemCode,
-        hits: String(hits),
-        sort,
-      }
-    )) as { reviews?: Array<{ review: Record<string, unknown> }> };
-
-    const reviews =
-      data.reviews?.map((r) => ({
-        rating: r.review.reviewPoint,
-        title: r.review.reviewTitle,
-        comment: r.review.reviewComment,
-        date: r.review.reviewDate,
-      })) ?? [];
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(reviews, null, 2) }],
-    };
-  }
-);
+// Note: get_product_reviews was removed when Rakuten retired the
+// IchibaItem Review API in their 2026 platform migration. Reviews are
+// still surfaced inline on each search_products result via reviewAverage
+// and reviewCount, just no longer queryable individually.
 
 // --- Prompts ---
 
@@ -477,25 +469,6 @@ server.prompt(
         content: {
           type: "text" as const,
           text: `Show me the current Rakuten bestseller ranking for ${category}`,
-        },
-      },
-    ],
-  })
-);
-
-server.prompt(
-  "product_reviews",
-  "Read reviews for a specific Rakuten product",
-  {
-    itemCode: z.string().describe("Rakuten item code (shop:itemId format)"),
-  },
-  ({ itemCode }) => ({
-    messages: [
-      {
-        role: "user" as const,
-        content: {
-          type: "text" as const,
-          text: `Get reviews for Rakuten product ${itemCode} and summarize the overall sentiment`,
         },
       },
     ],
