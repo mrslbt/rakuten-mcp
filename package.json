@@ -18,11 +18,18 @@
     "dev": "tsx src/index.ts"
   },
   "keywords": ["mcp", "rakuten", "japan", "ecommerce", "ai-agents"],
-  "author": "Marsel Bait",
+  "author": {
+    "name": "Marsel Bait",
+    "url": "https://marselbait.me"
+  },
   "license": "MIT",
+  "homepage": "https://github.com/mrslbt/rakuten-mcp#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/mrslbt/rakuten-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/mrslbt/rakuten-mcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
