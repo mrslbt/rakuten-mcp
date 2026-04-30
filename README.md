@@ -111,6 +111,10 @@ Find books by Haruki Murakami on Rakuten Books.
 
 All tools in this server are read-only searches against the Rakuten Web Service API. No tool creates, modifies, or deletes any resource. Rakuten enforces a roughly 1 QPS rate limit per app ID; in practice this matches conversational MCP usage but rapid-fire batch calls will get HTTP 429 responses. Products and rankings returned by the API may be promotional; treat results as suggestions, not endorsements, and verify prices and availability on the Rakuten site before acting on them.
 
+## Need a custom MCP?
+
+I build production MCP servers and AI-native tooling for teams. If you'd like one tailored to your stack, reach out: [marselbait.me](https://marselbait.me) · marselbait@gmail.com.
+
 ## Disclaimer
 
 This is an unofficial, community-built MCP server. Not affiliated with, endorsed by, or sponsored by Rakuten Group, Inc. Rakuten, Rakuten Ichiba, Rakuten Books, and Rakuten Travel are trademarks of Rakuten Group, Inc. Use at your own risk. The author accepts no liability for issues arising from misuse, prompt injection, or bugs.
