@@ -25,6 +25,8 @@ export interface Config {
   httpPort: number;
   httpHost: string;
   httpAuthToken?: string;
+  /** Comma-separated Origin allowlist for HTTP transport. Empty array = no cross-origin. */
+  httpAllowedOrigins: string[];
   /** Max retries on 429/5xx. Default 3. */
   maxRetries: number;
 }
@@ -38,6 +40,8 @@ const EnvSchema = z.object({
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(3000),
   MCP_HTTP_HOST: z.string().default("127.0.0.1"),
   MCP_HTTP_AUTH_TOKEN: z.string().optional(),
+  /** Comma-separated origins. Empty default = no cross-origin requests allowed. */
+  MCP_HTTP_ALLOWED_ORIGINS: z.string().default(""),
   RAKUTEN_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(3),
 });
 
@@ -52,6 +56,11 @@ export function loadConfig(): Config {
     throw new RakutenConfigError();
   }
 
+  const httpAllowedOrigins = env.MCP_HTTP_ALLOWED_ORIGINS
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   return {
     applicationId: env.RAKUTEN_APP_ID,
     accessKey: env.RAKUTEN_ACCESS_KEY,
@@ -61,8 +70,20 @@ export function loadConfig(): Config {
     httpPort: env.MCP_HTTP_PORT,
     httpHost: env.MCP_HTTP_HOST,
     httpAuthToken: env.MCP_HTTP_AUTH_TOKEN,
+    httpAllowedOrigins,
     maxRetries: env.RAKUTEN_MAX_RETRIES,
   };
+}
+
+/**
+ * Returns true if a bind host is publicly reachable (i.e. NOT localhost).
+ *
+ * Localhost set includes: "127.0.0.1", "::1", "localhost", "0.0.0.0" treated as PUBLIC
+ * (because 0.0.0.0 binds to ALL interfaces).
+ */
+export function isPubliclyBound(host: string): boolean {
+  const lower = host.trim().toLowerCase();
+  return lower !== "127.0.0.1" && lower !== "::1" && lower !== "localhost";
 }
 
 /**
