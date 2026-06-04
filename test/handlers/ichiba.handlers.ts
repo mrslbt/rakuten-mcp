@@ -21,15 +21,15 @@ function loadFixture(name: string): unknown {
 }
 
 const ICHIBA_ITEM_SEARCH_URL =
-  "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601";
+  "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401";
 const ICHIBA_GENRE_SEARCH_URL =
-  "https://app.rakuten.co.jp/services/api/IchibaGenre/Search/20140222";
+  "https://openapi.rakuten.co.jp/ichibagt/api/IchibaGenre/Search/20260401";
 const ICHIBA_TAG_SEARCH_URL =
-  "https://app.rakuten.co.jp/services/api/IchibaTag/Search/20140222";
+  "https://openapi.rakuten.co.jp/ichibagt/api/IchibaTag/Search/20140222";
 const ICHIBA_ITEM_RANKING_URL =
-  "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601";
+  "https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601";
 const ICHIBA_PRODUCT_SEARCH_URL =
-  "https://app.rakuten.co.jp/services/api/Product/Search/20170426";
+  "https://openapi.rakuten.co.jp/ichibaproduct/api/Product/Search/20250801";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Success / no-results

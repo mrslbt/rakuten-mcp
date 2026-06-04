@@ -2,7 +2,9 @@
 
 [![rakuten-mcp MCP server](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp/badges/score.svg)](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp)
 
-Model Context Protocol server for the [Rakuten Web Service API](https://webservice.rakuten.co.jp/). Covers Rakuten Ichiba (marketplace), Rakuten Books, and Rakuten Travel.
+A Model Context Protocol server for the [Rakuten Web Service API](https://webservice.rakuten.co.jp/). 28 read-only tools across six Rakuten product families: Ichiba (marketplace), Books, Travel, Recipe, Kobo, and GORA (golf).
+
+Every tool description ships in English and Japanese. Every endpoint was verified against the live Rakuten API on 2026-06-04 before release.
 
 ## Install
 
@@ -10,17 +12,20 @@ Model Context Protocol server for the [Rakuten Web Service API](https://webservi
 npm install -g rakuten-mcp
 ```
 
-Or run on demand with `npx rakuten-mcp`.
+Or `npx rakuten-mcp` on demand.
 
 ## Configuration
 
 1. Register at [Rakuten Web Service](https://webservice.rakuten.co.jp/).
-2. Create an application to get an Application ID and Access Key.
+2. Create an application. You get a UUID Application ID and a `pk_`-prefixed Access Key.
+3. Optional: register an Affiliate ID to monetize product links. Item URLs in tool responses will carry it.
 
 | Variable | Required | Description |
 |---|---|---|
-| `RAKUTEN_APP_ID` | yes | Application ID |
-| `RAKUTEN_ACCESS_KEY` | yes | Access Key |
+| `RAKUTEN_APP_ID` | yes | Application ID (UUID format on the new platform) |
+| `RAKUTEN_ACCESS_KEY` | yes | Access Key (starts with `pk_`) |
+| `RAKUTEN_AFFILIATE_ID` | no | Affiliate ID appended to every item URL |
+| `RAKUTEN_MAX_RETRIES` | no | Retries on 429 / 5xx. Default 3. |
 
 ### Claude Desktop
 
@@ -47,67 +52,92 @@ Edit `claude_desktop_config.json`:
 claude mcp add rakuten -e RAKUTEN_APP_ID=... -e RAKUTEN_ACCESS_KEY=... -- npx -y rakuten-mcp
 ```
 
-### Cursor
+### Cursor / Cline / Continue
 
-Add to `~/.cursor/mcp.json` with the same shape as Claude Desktop.
+Same JSON shape as Claude Desktop, under each client's MCP config path.
 
 ## Tools
 
-| Tool | Description |
+### Ichiba (5)
+
+| Tool | What it does |
 |---|---|
-| `search_products` | Full-text product search with price filters, sorting, and pagination. |
-| `get_genre_ranking` | Bestseller rankings, overall or by category. |
-| `search_genres` | Browse the product category hierarchy. |
-| `search_books` | Search Rakuten Books by title, author, or ISBN. |
-| `search_travel` | Search hotels on Rakuten Travel by keyword. |
-| `search_travel_vacancy` | Search available rooms with date, price, and location filters. |
-| `get_product_reviews` | Read product reviews with rating and date sorting. |
+| `ichiba_item_search` | Keyword search on Rakuten Ichiba with price filters, sort, genre/shop restrictions. |
+| `ichiba_genre_search` | Browse the genre tree. Returns current, ancestors, siblings, and children. |
+| `ichiba_tag_search` | Look up a specific tag by ID. Returns the tag group and name. |
+| `ichiba_item_ranking` | Bestseller ranking, overall or by genre / period / age / gender. |
+| `ichiba_product_search` | Item Price Navi: same product across multiple sellers with min/max/avg price. |
 
-## Prompts
+### Books (9)
 
-| Prompt | Description |
+| Tool | What it does |
 |---|---|
-| `search_products` | Search for products with optional price filters. |
-| `compare_products` | Compare products sorted by reviews or price. |
-| `category_bestsellers` | Bestseller ranking for a category. |
-| `product_reviews` | Summarize reviews for a product. |
-| `find_hotel` | Find hotels available on specific dates. |
-| `budget_hotel` | Find hotels within a budget. |
-| `find_book` | Search for a book by title, author, or ISBN. |
-| `books_by_author` | Find all books by an author. |
+| `books_total_search` | Cross-category search across all of Rakuten Books. |
+| `books_book_search` | Printed books by title, author, ISBN, publisher. |
+| `books_cd_search` | Music CDs by title, artist, label, JAN. |
+| `books_dvd_search` | DVDs / Blu-ray. |
+| `books_foreign_book_search` | Non-Japanese books. Returns `japaneseTitle` when a translation exists. |
+| `books_magazine_search` | Magazines by title, publisher, JAN. |
+| `books_game_search` | Video games by title, hardware platform, JAN. |
+| `books_software_search` | Computer software by title, OS, JAN. |
+| `books_genre_search` | Browse the Books genre tree (`000` = top). |
 
-## Resources
+### Travel (7)
 
-| Resource | URI | Description |
-|---|---|---|
-| Supported Genres | `rakuten://genres` | Top-level Rakuten Ichiba product categories. |
+| Tool | What it does |
+|---|---|
+| `travel_simple_hotel_search` | Hotels by area code or lat/lon. |
+| `travel_vacant_hotel_search` | Hotels with rooms available on specific check-in / check-out dates. Returns plans with per-night and total pricing. |
+| `travel_hotel_detail_search` | Full details for one hotel by `hotelNo`. |
+| `travel_get_area_class` | The area-code hierarchy: 日本 → 47 prefectures → cities → districts. |
+| `travel_keyword_hotel_search` | Free-text hotel search by name / landmark / area. |
+| `travel_get_hotel_chain_list` | All 307 hotel chains registered on Rakuten Travel. |
+| `travel_hotel_ranking` | Top hotels by ranking genre (all / onsen / ryokan / city / resort / business / pension / publichouse). |
+
+### Recipe (2)
+
+| Tool | What it does |
+|---|---|
+| `recipe_category_list` | The full Rakuten Recipe category tree (43 large → ~540 medium → ~1500 small). Pass `level` to fetch one tier. |
+| `recipe_category_ranking` | Top recipes in a category with title, ingredient list, prep time, cost estimate, image, and author. |
+
+### Kobo (2)
+
+| Tool | What it does |
+|---|---|
+| `kobo_ebook_search` | Search Rakuten Kobo's eBook catalogue. Returns title, series, author, publisher, language code, price, and sale URL. |
+| `kobo_genre_search` | Browse the Kobo genre tree. Top-level is `101` (電子書籍). |
+
+### GORA (3)
+
+| Tool | What it does |
+|---|---|
+| `gora_golf_course_search` | Golf courses by area code, keyword, or coordinates. |
+| `gora_golf_course_detail` | Full course profile: designer, hole/par, course distance, green type, dress code, facilities, base prices. |
+| `gora_plan_search` | Reservation plans on a specific play date. Returns per-plan prices, cart/caddie/lunch inclusions, player-count constraints. |
 
 ## Example queries
 
 ```
-Find wireless earphones under ¥10,000 with good reviews.
-楽天で1万円以下のワイヤレスイヤホンを探して。
-
-What are the top sellers on Rakuten right now?
-楽天の今の売れ筋ランキングを見せて。
-
-Search for hotels in Kyoto on Rakuten Travel.
-楽天トラベルで京都のホテルを探して。
-
-Find available rooms near Tokyo Station for April 15-17 under ¥15,000.
-東京駅近くで4月15〜17日、1万5千円以下の空室を探して。
-
-Find books by Haruki Murakami on Rakuten Books.
-村上春樹の本を楽天ブックスで探して。
+楽天で1万円以下のワイヤレスイヤホンを探して。レビュー4以上。
+村上春樹の楽天Kobo電子書籍を新着順で。
+東京駅近くのホテル、7月1〜2日、2名で1泊1万5千円以下の空室。
+今週末東京近郊のゴルフ場で安いプランは？
+楽天レシピで人気の鶏胸肉料理を5件、材料と所要時間込みで。
+JANコード 4988601009447 のCDの取扱店舗。
 ```
+
+## Architecture
+
+Modular: one file per API family under `src/tools/`. Stdio and HTTP transports both supported. Typed error tree with 8 classes covering Config / Auth / RateLimit / Server / NotFound / BadRequest / MalformedResponse / Unknown. Retry-with-backoff on 429 and 5xx, parses `Retry-After` as both seconds and HTTP-date. See `AGENTS.md` for the architecture brief, conventions, and how to add a new tool.
 
 ## Safety
 
-All tools in this server are read-only searches against the Rakuten Web Service API. No tool creates, modifies, or deletes any resource. Rakuten's terms of use and rate limits still apply. Products and reviews returned by the API may be promotional; treat results as suggestions, not endorsements, and verify prices and availability on the Rakuten site before acting on them.
+All 28 tools are read-only HTTP GETs against the Rakuten Web Service API. No tool creates, modifies, or deletes anything. Rakuten's [terms of service](https://webservice.rakuten.co.jp/documentation/) and rate limits apply. Returned items are promotional listings — verify prices and availability on Rakuten before acting on them.
 
 ## Disclaimer
 
-This is an unofficial, community-built MCP server. Not affiliated with, endorsed by, or sponsored by Rakuten Group, Inc. Rakuten, Rakuten Ichiba, Rakuten Books, and Rakuten Travel are trademarks of Rakuten Group, Inc. Use at your own risk. The author accepts no liability for issues arising from misuse, prompt injection, or bugs.
+Unofficial. Not affiliated with, endorsed by, or sponsored by Rakuten Group, Inc. Rakuten, Rakuten Ichiba, Rakuten Books, Rakuten Travel, Rakuten Recipe, Rakuten Kobo, and Rakuten GORA are trademarks of Rakuten Group, Inc. Use at your own risk.
 
 ## License
 

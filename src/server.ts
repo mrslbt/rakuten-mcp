@@ -11,7 +11,7 @@ import { resources } from "./resources/index.js";
 import { tools } from "./tools/index.js";
 
 const SERVER_NAME = "rakuten-mcp";
-const SERVER_VERSION = "1.0.0-alpha.0";
+const SERVER_VERSION = "1.0.0";
 
 const SERVER_INSTRUCTIONS = `rakuten-mcp exposes the public Rakuten Web Service as MCP tools across six families: Ichiba (e-commerce), Books, Travel (hotels), Recipe, Kobo (eBooks), and GORA (golf).
 
@@ -26,17 +26,26 @@ Tool naming: every tool is prefixed by its API family — ichiba_*, books_*, tra
 Bilingual: every tool description is provided in English (primary) and Japanese ([JA]). Use whichever the user prefers.`;
 
 export function buildServer(): McpServer {
+  // Only advertise capabilities the server actually serves. The SDK only
+  // registers a `prompts/list` / `resources/list` handler when at least one
+  // prompt / resource is registered. Advertising an empty `prompts: {}` while
+  // the SDK returns `-32601 Method not found` for `prompts/list` is a spec
+  // mismatch that surfaces as a noisy error in Claude Desktop's logs.
+  const capabilities: {
+    tools: Record<string, unknown>;
+    prompts?: Record<string, unknown>;
+    resources?: Record<string, unknown>;
+  } = { tools: {} };
+  if (prompts.length > 0) capabilities.prompts = {};
+  if (resources.length > 0) capabilities.resources = {};
+
   const server = new McpServer(
     {
       name: SERVER_NAME,
       version: SERVER_VERSION,
     },
     {
-      capabilities: {
-        tools: {},
-        prompts: {},
-        resources: {},
-      },
+      capabilities,
       instructions: SERVER_INSTRUCTIONS,
     },
   );

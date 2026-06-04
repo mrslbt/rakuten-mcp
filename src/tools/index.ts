@@ -13,6 +13,39 @@ import {
   ichibaProductSearchTool,
   ichibaTagSearchTool,
 } from "./ichiba.js";
+import {
+  booksBookSearchTool,
+  booksCDSearchTool,
+  booksDVDSearchTool,
+  booksForeignBookSearchTool,
+  booksGameSearchTool,
+  booksGenreSearchTool,
+  booksMagazineSearchTool,
+  booksSoftwareSearchTool,
+  booksTotalSearchTool,
+} from "./books.js";
+import {
+  travelGetAreaClassTool,
+  travelGetHotelChainListTool,
+  travelHotelDetailSearchTool,
+  travelHotelRankingTool,
+  travelKeywordHotelSearchTool,
+  travelSimpleHotelSearchTool,
+  travelVacantHotelSearchTool,
+} from "./travel.js";
+import {
+  recipeCategoryListTool,
+  recipeCategoryRankingTool,
+} from "./recipe.js";
+import {
+  koboEbookSearchTool,
+  koboGenreSearchTool,
+} from "./kobo.js";
+import {
+  goraGolfCourseDetailTool,
+  goraGolfCourseSearchTool,
+  goraPlanSearchTool,
+} from "./gora.js";
 
 export const tools: ToolDefinition[] = [
   // Ichiba tools (5 of 5 — complete)
@@ -24,11 +57,34 @@ export const tools: ToolDefinition[] = [
   ichibaTagSearchTool,
   ichibaItemRankingTool,
   ichibaProductSearchTool,
-  // Books tools — added Week 2
-  // Travel tools — added Week 2
-  // Recipe tools — added Week 3
-  // Kobo tools — added Week 3
-  // GORA tools — added Week 3
+  // Books tools (9 of 9 — Week 2)
+  booksTotalSearchTool,
+  booksBookSearchTool,
+  booksCDSearchTool,
+  booksDVDSearchTool,
+  booksForeignBookSearchTool,
+  booksMagazineSearchTool,
+  booksGameSearchTool,
+  booksSoftwareSearchTool,
+  booksGenreSearchTool,
+  // Travel tools (7 of 7 — Week 2)
+  travelSimpleHotelSearchTool,
+  travelVacantHotelSearchTool,
+  travelHotelDetailSearchTool,
+  travelGetAreaClassTool,
+  travelKeywordHotelSearchTool,
+  travelGetHotelChainListTool,
+  travelHotelRankingTool,
+  // Recipe tools (2 of 2 — Week 3)
+  recipeCategoryListTool,
+  recipeCategoryRankingTool,
+  // Kobo tools (2 of 2 — Week 3)
+  koboEbookSearchTool,
+  koboGenreSearchTool,
+  // GORA tools (3 of 3 — Week 3)
+  goraGolfCourseSearchTool,
+  goraGolfCourseDetailTool,
+  goraPlanSearchTool,
 ];
 
 export type { ToolDefinition } from "./types.js";

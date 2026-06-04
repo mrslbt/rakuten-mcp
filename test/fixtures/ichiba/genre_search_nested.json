@@ -1,17 +1,21 @@
 {
-  "current": {
+  "genre": {
     "genreId": 565910,
-    "genreName": "イヤホン・ヘッドホン",
-    "genreLevel": 3,
-    "taxonomyId": null
+    "nameJa": "イヤホン・ヘッドホン",
+    "level": 3
   },
-  "parents": [
-    { "parent": { "genreId": 0, "genreName": "ジャンルトップ", "genreLevel": 0, "taxonomyId": null } },
-    { "parent": { "genreId": 558885, "genreName": "家電", "genreLevel": 1, "taxonomyId": null } },
-    { "parent": { "genreId": 562630, "genreName": "オーディオ", "genreLevel": 2, "taxonomyId": null } }
+  "ancestors": [
+    { "genreId": 0, "nameJa": "ジャンルトップ", "level": 0 },
+    { "genreId": 558885, "nameJa": "家電", "level": 1 },
+    { "genreId": 562630, "nameJa": "オーディオ", "level": 2 }
+  ],
+  "siblings": [
+    { "genreId": 565920, "nameJa": "スピーカー", "level": 3 },
+    { "genreId": 565930, "nameJa": "アンプ", "level": 3 }
   ],
   "children": [
-    { "child": { "genreId": 565911, "genreName": "イヤホン", "genreLevel": 4, "taxonomyId": null } },
-    { "child": { "genreId": 565912, "genreName": "ヘッドホン", "genreLevel": 4, "taxonomyId": null } }
-  ]
+    { "genreId": 565911, "nameJa": "イヤホン", "level": 4 },
+    { "genreId": 565912, "nameJa": "ヘッドホン", "level": 4 }
+  ],
+  "attributes": []
 }

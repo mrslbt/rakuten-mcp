@@ -1,8 +1,8 @@
 {
   "name": "rakuten-mcp",
-  "version": "1.0.0-alpha.0",
+  "version": "1.0.0",
   "mcpName": "io.github.mrslbt/rakuten-mcp",
-  "description": "MCP server for Rakuten APIs — Ichiba (e-commerce), Books, Travel (hotels), Recipe, Kobo, GORA (golf). Bilingual JP/EN. Read-only.",
+  "description": "MCP server for Rakuten Web Service: 28 read-only tools across Ichiba, Books, Travel, Recipe, Kobo, and GORA. Bilingual EN/JA tool descriptions.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

@@ -4,20 +4,22 @@ Instructions for AI coding agents (Codex, Cursor, Copilot, Claude Code, etc.) co
 
 ## What this project is
 
-`rakuten-mcp` is a Model Context Protocol server that exposes the **public Rakuten Web Service** as MCP tools. It's a **read-only** server — there are no money-moving operations, no merchant-side (RMS) endpoints, and no destructive actions. Distribution: npm (`rakuten-mcp`), listed in the Official MCP Registry as `io.github.mrslbt/rakuten-mcp`, plus Glama / Smithery / mcp.so / Cline marketplace / PulseMCP / LobeHub / awesome-mcp-servers.
+`rakuten-mcp` is a Model Context Protocol server that exposes the **public Rakuten Web Service** as MCP tools. It is **read-only** — there are no money-moving operations, no merchant-side (RMS) endpoints, no destructive actions. Distribution: npm (`rakuten-mcp`), listed in the Official MCP Registry as `io.github.mrslbt/rakuten-mcp`, plus Glama / Smithery / mcp.so / Cline marketplace / PulseMCP / LobeHub / awesome-mcp-servers.
 
-Six API families, ~27 tools when complete (build target: v1.0.0):
+**28 tools across 6 API families** (as of v1.0.0, verified live on 2026-06-04):
 
-| Family | Prefix | Tools (target) | Host |
-|---|---|---:|---|
-| Ichiba (e-commerce) | `ichiba_*` | 6–7 | `app.rakuten.co.jp` (legacy) |
-| Books | `books_*` | 9 | Both — Books migrated to `openapi.rakuten.co.jp` |
-| Travel | `travel_*` | 7 | Mixed — vacancy on `openapi/engine/api`, others on legacy |
-| Recipe | `recipe_*` | 2 | `app.rakuten.co.jp` (legacy) |
-| Kobo (eBooks) | `kobo_*` | 2 | TBD per endpoint |
-| GORA (golf) | `gora_*` | 3 | TBD per endpoint |
+| Family | Prefix | Tools | Host | Path root |
+|---|---|---:|---|---|
+| Ichiba (e-commerce) | `ichiba_*` | 5 | `openapi.rakuten.co.jp` | `/ichibams/api/`, `/ichibagt/api/`, `/ichibaranking/api/`, `/ichibaproduct/api/` |
+| Books | `books_*` | 9 | `openapi.rakuten.co.jp` | `/services/api/` |
+| Travel (hotels) | `travel_*` | 7 | `openapi.rakuten.co.jp` | `/engine/api/Travel/` |
+| Recipe | `recipe_*` | 2 | `openapi.rakuten.co.jp` | `/recipems/api/` |
+| Kobo (eBooks) | `kobo_*` | 2 | `openapi.rakuten.co.jp` | `/services/api/Kobo/` |
+| GORA (golf) | `gora_*` | 3 | `openapi.rakuten.co.jp` | `/engine/api/Gora/` |
 
-**Host config is per-endpoint, not blanket.** The verified state of the Rakuten migration is that some endpoint families have moved to `openapi.rakuten.co.jp` and others haven't. Each tool file picks its host explicitly.
+**Everything is on `openapi.rakuten.co.jp` now.** The pre-migration `app.rakuten.co.jp` host is no longer used by any shipped tool. The constant `HOST_LEGACY` still exists in `src/config.ts` as documentation of the old host, but no tool imports it. What varies per endpoint is the **path root**, not the host. Within Ichiba alone there are four distinct path roots.
+
+This is the result of Rakuten's 2026-04 platform migration. The host moved, the path roots fragmented, and the version date on each endpoint may or may not have bumped. Three Ichiba response shapes were also rewritten in that migration (genre is now flat `ancestors/siblings/children`, tag is tagId-only, product uses `productId` opaque hash).
 
 ## Quick commands
 
@@ -34,6 +36,11 @@ npm run dev:http   # tsx watch via Streamable HTTP on :3000
 
 Pre-commit gate: `npm run typecheck && npm test`. Both must pass.
 
+Two additional verification scripts under `scripts/`:
+
+- `node scripts/smoke.mjs` — drives all 28 tools against the live Rakuten API end-to-end. Requires real `RAKUTEN_APP_ID` + `RAKUTEN_ACCESS_KEY` in env. Takes ~21s.
+- `node scripts/client-conformance.mjs` — exercises the full MCP protocol surface the way Claude Desktop / Cursor / Cline do on load (initialize handshake, tools/list schemas, prompts/resources spec-compliance, error paths). Catches bugs the smoke test can't.
+
 ## Architecture
 
 ```
@@ -47,27 +54,29 @@ src/
 ├── auth.ts             # applicationId + accessKey + optional affiliateId
 ├── transports/
 │   ├── stdio.ts        # StdioServerTransport (default)
-│   └── http.ts         # Streamable HTTP (added Week 2)
+│   └── http.ts         # Streamable HTTP — 3-gate security (Host, Origin, Bearer)
 ├── tools/
 │   ├── types.ts        # ToolDefinition, PromptDefinition, ResourceDefinition
 │   ├── index.ts        # Tool registry (aggregates all family files)
-│   ├── ichiba.ts       # ichiba_* tools
-│   ├── books.ts        # books_* tools
-│   ├── travel.ts       # travel_* tools
-│   ├── recipe.ts       # recipe_* tools
-│   ├── kobo.ts         # kobo_* tools
-│   └── gora.ts         # gora_* tools
-├── prompts/index.ts    # Prompt registry
-└── resources/index.ts  # Resource registry
+│   ├── ichiba.ts       # 5 tools
+│   ├── books.ts        # 9 tools
+│   ├── travel.ts       # 7 tools
+│   ├── recipe.ts       # 2 tools
+│   ├── kobo.ts         # 2 tools
+│   └── gora.ts         # 3 tools
+├── prompts/index.ts    # Prompt registry (currently empty)
+└── resources/index.ts  # Resource registry (currently empty)
 ```
 
-The MCP SDK is `@modelcontextprotocol/sdk` ^1.29. Code uses the high-level `McpServer` API with `registerTool`/`registerPrompt`/`registerResource`. Do NOT use the lower-level `Server` + `setRequestHandler` pattern — it bypasses higher-level type safety.
+The MCP SDK is `@modelcontextprotocol/sdk` ^1.29. Code uses the high-level `McpServer` API with `registerTool` / `registerPrompt` / `registerResource`. Do NOT use the lower-level `Server` + `setRequestHandler` pattern — it bypasses higher-level type safety.
+
+`server.ts` only advertises a capability (`prompts`, `resources`) when its registry is non-empty. Advertising an empty capability while the SDK doesn't register the corresponding `list` handler results in `-32601 Method not found` errors in client logs.
 
 ## Two non-negotiable conventions
 
 ### 1. Bilingual descriptions on EVERY user-facing string
 
-Tools, prompts, resources, and Zod field `.describe()` calls all require both English and Japanese text. This is a deliberate product decision — `rakuten-mcp` targets Japanese e-commerce/travel/books users equally with English-speaking developers.
+Tools, prompts, resources, and Zod field `.describe()` calls all require both English and Japanese text. `rakuten-mcp` targets Japanese e-commerce / travel / books users equally with English-speaking developers.
 
 Format: English text, blank line, Japanese text. CI enforces non-empty bilingual values via `test/i18n.test.ts`.
 
@@ -85,59 +94,40 @@ description: bilingual("Search products", "")
 description: "Search products"
 ```
 
-### 2. Per-endpoint host selection — never blanket-migrate
+### 2. Verify every endpoint URL before writing the tool
 
-Each tool file explicitly picks its host (`HOST_LEGACY` or `HOST_OPENAPI`) per endpoint. This is verified-correct as of June 2026: Rakuten's migration to `openapi.rakuten.co.jp` is partial — Books and Travel/vacancy are on the new host; Ichiba, Recipe, and Travel/keyword are still on the legacy host.
+The plan documents and third-party API surveys lie. Endpoints get silently moved, dates get bumped, response shapes change. The pattern is: probe with `curl` + your real `RAKUTEN_APP_ID`, watch the response shape, then write the code.
 
-```ts
-import { HOST_LEGACY, HOST_OPENAPI } from "../config.js";
+This convention is what catches Rakuten's silent migrations. Week 1 found that all 5 Ichiba endpoints had moved (host, path root, version date, and response shape). Week 2 found Books and Travel were exactly where the docs said. Week 3 found Kobo genre wouldn't accept `0` / `000` as the top-level ID (you need `101`).
 
-// Ichiba is on the legacy host today
-const ichibaItemSearch: ToolDefinition<typeof input> = {
-  name: "ichiba_item_search",
-  // ...
-  handler: async (args, config) => rakutenRequest({
-    host: HOST_LEGACY,
-    path: "/services/api/IchibaItem/Search/20220601",
-    params: { keyword: args.keyword, hits: String(args.hits) },
-  }, config),
-};
-
-// Books is on the new host
-const booksTotalSearch: ToolDefinition<typeof input> = {
-  name: "books_total_search",
-  // ...
-  handler: async (args, config) => rakutenRequest({
-    host: HOST_OPENAPI,
-    path: "/services/api/BooksTotal/Search/20170404",
-    params: { /* ... */ },
-  }, config),
-};
+```bash
+# Template for a single endpoint probe
+curl -sS "https://openapi.rakuten.co.jp/<path-root>/api/<Family>/<Endpoint>/<YYYYMMDD>?applicationId=$APP_ID&accessKey=$ACCESS_KEY&format=json&<param>=<value>" \
+  | python3 -m json.tool | head -50
 ```
 
-Users can override every host with `RAKUTEN_API_HOST_OVERRIDE` env var if Rakuten silently moves an endpoint mid-life. Do not remove that escape hatch.
+If a probe fails, fetch the documentation page directly (`https://webservice.rakuten.co.jp/documentation/<endpoint-slug>`) and quote the URL template verbatim into the docstring on the tool. Don't trust summaries.
 
 ## How to add a new tool
 
-Canonical pattern, derived from `src/tools/ichiba.ts`:
-
-1. **Decide which host serves the endpoint** by hitting it manually with curl + real creds. Don't assume.
-2. **Create the tool file** if a family file doesn't exist yet, or append to the existing family file.
-3. **Define the Zod input schema** with bilingual `.describe()` on every field.
-4. **Write the handler** that calls `rakutenRequest` with the right host, path, and params.
-5. **Export the tool definition**.
-6. **Register it** in `src/tools/index.ts` by adding to the `tools` array.
-7. **Record fixtures**: `test/fixtures/<family>/<tool_name>_success.json` (real response with creds), plus edge cases (no results, validation errors).
-8. **Write tests** in `test/<family>.test.ts` covering: success, no-results, missing-required-param (Zod throws), 401 auth, 429 rate-limit (retried then succeeds), 5xx (retried then fails), 4xx (not retried).
-9. **Update README** coverage table.
-10. **Update CHANGELOG.md** under the unreleased section.
+1. **Probe the endpoint** with `curl` + real credentials. Confirm path root, version date, and response shape.
+2. **Capture a fixture**: `test/fixtures/<family>/<tool_name>_success.json`, plus edge cases (`<tool_name>_empty.json`, `<tool_name>_auth_invalid.json`).
+3. **Create or append to** the family file under `src/tools/`.
+4. **Define the Zod input schema** with bilingual `.describe()` on every field.
+5. **Write the handler** — string-valued query params, `HOST_OPENAPI`, path from the probe.
+6. **Export the tool definition**.
+7. **Register it** in `src/tools/index.ts` by adding to the `tools` array.
+8. **Add msw handlers** in `test/handlers/<family>.handlers.ts`.
+9. **Write tests** in `test/<family>.test.ts` covering: tool definition (name, bilingual), Zod validation (missing required, defaults), success, no-results, 400 auth error, 429 rate-limit (retried then succeeds), 5xx (retried then fails).
+10. **Update README** tool table and **CHANGELOG.md** under the unreleased section.
+11. **Add to `scripts/smoke.mjs`** so the live-API check covers it.
 
 Template:
 
 ```ts
 // src/tools/<family>.ts
 import { z } from "zod";
-import { HOST_LEGACY } from "../config.js";
+import { HOST_OPENAPI } from "../config.js";
 import { bilingual } from "../i18n.js";
 import { rakutenRequest } from "../client.js";
 import type { ToolDefinition } from "./types.js";
@@ -153,17 +143,16 @@ export const someNewTool: ToolDefinition<typeof input> = {
   name: "family_some_new_tool",
   title: bilingual("Human-Readable Title", "人間が読めるタイトル"),
   description: bilingual(
-    "Tell the LLM what this does and when to use it. Mention the Rakuten endpoint underneath if useful.",
+    "Tell the LLM what this does and when to use it.",
     "LLMに何をするツールか、いつ使うかを伝えます。"
   ),
   inputSchema: input,
   async handler(args, config) {
     return rakutenRequest({
-      host: HOST_LEGACY, // or HOST_OPENAPI — verify per endpoint
-      path: "/services/api/Family/Endpoint/YYYYMMDD",
+      host: HOST_OPENAPI,
+      path: "/<path-root>/api/<Family>/<Endpoint>/<YYYYMMDD>",
       params: {
-        // string-valued query params; rakutenRequest handles auth + format
-        someField: args.some_field,
+        someField: args.some_field, // string-valued; rakutenRequest handles auth + format
       },
     }, config);
   },
@@ -185,19 +174,19 @@ export const tools: ToolDefinition[] = [
 
 `vitest` for unit + integration. **No live API calls in CI** — `msw` intercepts every Rakuten request and returns recorded fixtures.
 
-Fixture convention: every fixture is a real Rakuten response captured during development. Filename: `test/fixtures/<family>/<tool_name>_<scenario>.json`. Scenarios: `success`, `no_results`, `auth_invalid`, `rate_limited`, `server_error`, `not_found`, plus tool-specific edge cases.
+Fixture convention: every fixture is a real Rakuten response captured during development. Filename: `test/fixtures/<family>/<tool_name>_<scenario>.json`. Scenarios: `success`, `empty`, `auth_invalid`, `rate_limited`, `server_error`, `not_found`, plus tool-specific edge cases.
 
 When recording a new fixture:
 
-1. Run `npm run dev:stdio` with real `RAKUTEN_APP_ID` + `RAKUTEN_ACCESS_KEY`
-2. Invoke the tool via MCP Inspector (or directly via JSON-RPC over stdio)
+1. `npm run dev:stdio` with real `RAKUTEN_APP_ID` + `RAKUTEN_ACCESS_KEY`
+2. Invoke the tool via JSON-RPC over stdio (see `scripts/smoke.mjs` for the wire-up)
 3. Save the JSON response body to the appropriate fixture file
 4. Add a corresponding handler to `test/handlers/<family>.handlers.ts`
 5. Write the test in `test/<family>.test.ts` that uses the handler
 
-msw must be configured with `onUnhandledRequest: "error"` so any test that accidentally calls a real URL fails fast.
+msw is configured with `onUnhandledRequest: "error"` so any test that accidentally calls a real URL fails fast.
 
-Acceptance: ≥ 80% line coverage before v1.0.0.
+Current state: 169 unit tests across 7 test files. 28/28 tools pass the live-API smoke. 16/16 protocol-conformance checks pass.
 
 ## Error handling
 
@@ -209,7 +198,7 @@ Eight typed error classes in `src/errors.ts`:
 | `RakutenAuthError` | 401/403 from Rakuten |
 | `RakutenRateLimitError` | 429; carries parsed `retryAfterMs` |
 | `RakutenServerError` | 5xx |
-| `RakutenNotFoundError` | 404 (endpoint moved/deprecated) |
+| `RakutenNotFoundError` | 404 (endpoint moved / deprecated) |
 | `RakutenBadRequestError` | 400 with extracted error message |
 | `RakutenMalformedResponseError` | Body isn't JSON / unexpected shape |
 | `RakutenUnknownError` | Other HTTP status not matched above |
@@ -217,7 +206,7 @@ Eight typed error classes in `src/errors.ts`:
 Every error carries both English (`message`) and Japanese (`messageJa`) text. Tool handlers in `src/server.ts` automatically convert `RakutenError` instances to bilingual tool errors via `err.toToolError()`.
 
 `parseRakutenError()` normalizes BOTH host response shapes:
-- Legacy: `{ "error_description": "...", "error": "wrong_parameter" }`
+- Legacy: `{ "error_description": "...", "error": "wrong_parameter" }` (still emitted by Rakuten on some endpoints)
 - New: `{ "errors": { "errorCode": 400, "errorMessage": "..." } }`
 
 Do not introduce a third error shape. If a new endpoint returns something different, extend `parseRakutenError()` rather than adding ad-hoc handling in tool files.
@@ -231,24 +220,30 @@ Retry policy:
 
 ## HTTP transport
 
-Coming in Week 2 (Day 4 per `PLAN-v1.0.md`). Will support:
-- `--http [port]` CLI flag or `MCP_TRANSPORT=http`
-- Bearer token auth via `MCP_HTTP_AUTH_TOKEN`
-- Origin header validation
-- Default bind to `127.0.0.1` (do not expose publicly without explicit opt-in)
+Shipped in v1.0.0. Streamable HTTP via `--http [port]` CLI flag or `MCP_TRANSPORT=http`.
 
-Current stub at `src/transports/http.ts` exits with code 2 and a pointer to the plan.
+Three security gates, in order, before any MCP message is processed:
+
+1. **Host validation** — refuses any `Host` header that isn't the configured `MCP_HTTP_HOST` (default `127.0.0.1`) or localhost. DNS rebinding protection.
+2. **Origin validation** — refuses any `Origin` not in `MCP_HTTP_ALLOWED_ORIGINS` (default empty; localhost origins always allowed). CSRF protection.
+3. **Bearer auth** — when `MCP_HTTP_AUTH_TOKEN` is set, requires `Authorization: Bearer <token>`.
+
+The server refuses to bind to a non-localhost interface unless `MCP_HTTP_AUTH_TOKEN` is set. This is enforced in `src/transports/http.ts` and prevents accidental public exposure.
+
+Gate logic is pure and unit-tested in `test/http-transport.test.ts`.
 
 ## What NOT to do
 
 - **Do not** use the low-level `Server` + `setRequestHandler` SDK pattern. Stay on `McpServer` + `registerXxx`.
 - **Do not** ship a tool with English-only descriptions. Bilingual is enforced.
-- **Do not** ship a tool that mutates Rakuten state. The public Rakuten Web Service is read-only by API design; if you're tempted to add a "create_*" or "delete_*" tool, you're looking at the wrong API surface (that's RMS — a separate authenticated merchant-side API not in scope for this MCP).
+- **Do not** ship a tool that mutates Rakuten state. The public Rakuten Web Service is read-only by API design; if you're tempted to add a `create_*` or `delete_*` tool, you're looking at the wrong API surface (that's RMS — a separate authenticated merchant-side API not in scope for this MCP).
 - **Do not** introduce third-party dependencies for HTTP, signing, or auth. Use the built-in `fetch` and the existing `auth.ts` helpers.
-- **Do not** blanket-migrate all endpoints to `openapi.rakuten.co.jp`. Migration is partial. Verify per endpoint.
+- **Do not** assume an endpoint's URL from documentation alone. Probe it first.
+- **Do not** advertise a capability (`prompts`, `resources`) when its registry is empty. Advertise only what you serve.
 - **Do not** commit `dist/`, `.env`, or `node_modules`. They are git-ignored.
-- **Do not** log API keys, application IDs, or full responses to stderr. The logger goes to stderr only and must avoid sensitive payloads.
-- **Do not** ship without updating CHANGELOG.md. Every release entry follows [Keep a Changelog](https://keepachangelog.com/).
+- **Do not** log API keys, application IDs, or full responses to stderr.
+- **Do not** ship without updating `CHANGELOG.md`. Every release entry follows [Keep a Changelog](https://keepachangelog.com/).
+- **Do not** publish to npm without explicit user approval, even when a multi-step plan implies it.
 
 ## Release process
 
@@ -267,31 +262,28 @@ Steps:
 npm run typecheck && npm test
 # 3. Build
 npm run build
-# 4. Run a smoke test against the real API with valid creds
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1.0"}}}' | RAKUTEN_APP_ID=... RAKUTEN_ACCESS_KEY=... node dist/index.js
-# 5. Commit + tag
+# 4. Smoke against the live API
+RAKUTEN_APP_ID=... RAKUTEN_ACCESS_KEY=... node scripts/smoke.mjs
+# 5. Conformance check
+RAKUTEN_APP_ID=... RAKUTEN_ACCESS_KEY=... node scripts/client-conformance.mjs
+# 6. Commit + tag
 git add -A && git commit -m "release: vX.Y.Z — <one-line summary>"
 git tag vX.Y.Z
 git push origin main --tags
-# 6. Publish to npm (token in ~/.npmrc must have bypass-2FA)
+# 7. Publish to npm (token in ~/.npmrc must have bypass-2FA, OR set NPM_TOKEN
+#    as a GH secret to let release.yml handle it)
 npm publish
-# 7. Refresh aggregators
-# - Glama auto-rebuilds via glama.json
-# - Smithery picks up via smithery.yaml on push
-# - Official MCP Registry: mcp-publisher publish (requires GH OIDC auth)
 ```
 
-CI on tag push automates steps 5–7 once Week 3 Day 5's `release.yml` lands.
+CI release workflow at `.github/workflows/release.yml` automates the publish on tag push, gated by an `NPM_TOKEN` repo secret. The dist-tag is inferred from the git tag suffix: `v1.0.0-alpha.N` → `alpha`, `v1.0.0-beta.N` → `beta`, `v1.0.0-rc.N` → `rc`, `v1.0.0` → `latest`.
 
 ## Useful Rakuten Web Service references
 
 - **Developer dashboard** (free signup, get App ID + Access Key): https://webservice.rakuten.co.jp/
 - **API documentation index**: https://webservice.rakuten.co.jp/documentation
-- **API Explorer** (for manual endpoint testing): https://webservice.rakuten.co.jp/explorer/api
-- **Legacy host**: `https://app.rakuten.co.jp` — Ichiba, Recipe, Travel/keyword, etc.
-- **New host**: `https://openapi.rakuten.co.jp` — Books, Travel/vacancy (on `/engine/api/`)
-- **Rate limit**: ~1 QPS per applicationId (not officially documented; observed empirically)
+- **Host**: `https://openapi.rakuten.co.jp` — all 28 tools target this single host with varying path roots
+- **Rate limit**: ~1 QPS per applicationId (not officially documented; observed empirically; the smoke test sleeps 1.1s between calls to stay polite)
 
 ## Maintainer
 
-Built by Marsel Bait (https://marselbait.me). Part of a portfolio of MCP servers focused on the Japan/SEA region and AI-native tooling. Other servers in the catalogue: rippr (YouTube transcripts), paypay-mcp (QR payments), xendit-mcp (SEA payments), japan-ux-mcp (UX patterns), pdf-it (designed PDFs), tabedata-mcp (Japanese food nutrition).
+Built by Marsel Bait (https://marselbait.me). Part of a portfolio of MCP servers focused on the Japan / SEA region and AI-native tooling. Other servers in the catalogue: rippr (YouTube transcripts), paypay-mcp (QR payments), xendit-mcp (SEA payments), japan-ux-mcp (UX patterns), pdf-it (designed PDFs), tabedata-mcp (Japanese food nutrition).

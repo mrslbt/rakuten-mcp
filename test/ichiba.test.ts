@@ -226,32 +226,34 @@ describe("ichibaGenreSearch — handler behaviour", () => {
     const result = await ichibaGenreSearchTool.handler({ genre_id: "0" }, testConfig);
     const r = result as {
       current: { genreId: string; genreName: string; genreLevel: number };
-      parents: unknown[];
+      ancestors: unknown[];
+      siblings: unknown[];
       children: Array<{ genreId: string; genreName: string }>;
     };
 
     expect(r.current.genreId).toBe("0");
     expect(r.current.genreName).toBe("ジャンルトップ");
-    expect(r.parents).toEqual([]);
+    expect(r.ancestors).toEqual([]);
     expect(r.children).toHaveLength(5);
     expect(r.children[0].genreName).toBe("パソコン・周辺機器");
   });
 
-  it("returns nested parents and children for a non-root genre", async () => {
+  it("returns nested ancestors and children for a non-root genre", async () => {
     server.use(genreSearchNested());
 
     const result = await ichibaGenreSearchTool.handler({ genre_id: "565910" }, testConfig);
     const r = result as {
       current: { genreId: string; genreLevel: number };
-      parents: Array<{ genreId: string; genreName: string }>;
+      ancestors: Array<{ genreId: string; genreName: string }>;
+      siblings: Array<{ genreId: string; genreName: string }>;
       children: Array<{ genreId: string }>;
     };
 
     expect(r.current.genreId).toBe("565910");
     expect(r.current.genreLevel).toBe(3);
-    expect(r.parents).toHaveLength(3);
-    expect(r.parents[0].genreId).toBe("0");
-    expect(r.parents[2].genreName).toBe("オーディオ");
+    expect(r.ancestors).toHaveLength(3);
+    expect(r.ancestors[0].genreId).toBe("0");
+    expect(r.ancestors[2].genreName).toBe("オーディオ");
     expect(r.children).toHaveLength(2);
   });
 
@@ -294,14 +296,14 @@ describe("ichibaTagSearch — tool definition", () => {
     expect(ichibaTagSearchTool.title.ja).toBeTruthy();
   });
 
-  it("accepts tag_id alone", () => {
+  it("accepts a positive tag_id", () => {
     const parsed = ichibaTagSearchTool.inputSchema.parse({ tag_id: 1000651 });
     expect(parsed.tag_id).toBe(1000651);
   });
 
-  it("accepts genre_id alone", () => {
-    const parsed = ichibaTagSearchTool.inputSchema.parse({ genre_id: "565910" });
-    expect(parsed.genre_id).toBe("565910");
+  it("rejects missing tag_id (it is the only required input)", () => {
+    const parse = () => ichibaTagSearchTool.inputSchema.parse({});
+    expect(parse).toThrow();
   });
 
   it("rejects negative tag_id", () => {
@@ -311,10 +313,10 @@ describe("ichibaTagSearch — tool definition", () => {
 });
 
 describe("ichibaTagSearch — handler behaviour", () => {
-  it("returns tag groups for a genre", async () => {
+  it("returns tag group details for a tag id", async () => {
     server.use(tagSearchSuccess());
 
-    const result = await ichibaTagSearchTool.handler({ genre_id: "565910" }, testConfig);
+    const result = await ichibaTagSearchTool.handler({ tag_id: 1000651 }, testConfig);
     const r = result as {
       tagGroups: Array<{
         tagGroupId: number;
@@ -329,12 +331,6 @@ describe("ichibaTagSearch — handler behaviour", () => {
     expect(r.tagGroups[0].tags[0].tagName).toBe("Bluetooth");
   });
 
-  it("throws when neither tag_id nor genre_id provided", async () => {
-    await expect(
-      ichibaTagSearchTool.handler({}, testConfig),
-    ).rejects.toThrow(/tag_id or genre_id/);
-  });
-
   it("throws RakutenBadRequestError on 400", async () => {
     server.use(tagSearchAuthInvalid());
 
@@ -346,7 +342,7 @@ describe("ichibaTagSearch — handler behaviour", () => {
   it("retries 429 then succeeds", async () => {
     server.use(tagSearchRateLimitedThenSuccess(1));
 
-    const result = await ichibaTagSearchTool.handler({ genre_id: "565910" }, testConfig);
+    const result = await ichibaTagSearchTool.handler({ tag_id: 1000651 }, testConfig);
     const r = result as { tagGroups: unknown[] };
     expect(r.tagGroups).toHaveLength(2);
   });

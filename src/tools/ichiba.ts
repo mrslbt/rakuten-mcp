@@ -1,12 +1,26 @@
 /**
  * Ichiba (Rakuten's e-commerce marketplace) tools.
  *
- * Host: legacy (app.rakuten.co.jp). Verified June 2026 — Ichiba endpoints
- * have not migrated to openapi.rakuten.co.jp yet. Re-check before v1.0.
+ * Host: openapi.rakuten.co.jp (new platform, required for UUID-format App IDs).
+ *
+ * Verified live 2026-06-04 against the user's credentials. Each tool's path
+ * prefix differs by endpoint family:
+ *   - IchibaItem/Search    →  /ichibams/api/IchibaItem/Search/20260401
+ *   - IchibaGenre/Search   →  /ichibagt/api/IchibaGenre/Search/20260401
+ *   - IchibaTag/Search     →  /ichibagt/api/IchibaTag/Search/20140222
+ *   - IchibaItem/Ranking   →  /ichibaranking/api/IchibaItem/Ranking/20220601
+ *   - Product/Search       →  /ichibaproduct/api/Product/Search/20250801
+ *
+ * The 2026-04 platform migration changed:
+ *   - host (openapi.rakuten.co.jp, not app.rakuten.co.jp)
+ *   - path roots (/ichibaXXX/api/, not /services/api/)
+ *   - IchibaGenre response shape (flat ancestors/genre/siblings/children,
+ *     not wrapped parent/child)
+ *   - IchibaTag input contract (tagId only — genreId listing mode dropped)
  */
 
 import { z } from "zod";
-import { HOST_LEGACY } from "../config.js";
+import { HOST_OPENAPI } from "../config.js";
 import { rakutenRequest } from "../client.js";
 import { bilingual } from "../i18n.js";
 import type { ToolDefinition } from "./types.js";
@@ -194,8 +208,8 @@ export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
 
     const raw = await rakutenRequest<RawItemSearchResponse>(
       {
-        host: HOST_LEGACY,
-        path: "/services/api/IchibaItem/Search/20220601",
+        host: HOST_OPENAPI,
+        path: "/ichibams/api/IchibaItem/Search/20260401",
         params,
       },
       config,
@@ -232,35 +246,48 @@ export interface IchibaGenreNode {
   genreId: string;
   genreName: string;
   genreLevel: number;
-  taxonomyId?: number | null;
 }
 
 export interface IchibaGenreSearchResult {
   current: IchibaGenreNode;
-  parents: IchibaGenreNode[];
+  ancestors: IchibaGenreNode[];
+  siblings: IchibaGenreNode[];
   children: IchibaGenreNode[];
 }
 
 interface RawGenreNode {
   genreId?: number | string;
+  nameJa?: string;
+  level?: number;
+  /** Legacy shape kept as fallback for any older response. */
   genreName?: string;
   genreLevel?: number;
-  taxonomyId?: number | null;
 }
 
 interface RawGenreSearchResponse {
-  current?: RawGenreNode;
-  parents?: Array<{ parent: RawGenreNode }>;
-  children?: Array<{ child: RawGenreNode }>;
+  /** 2026-04+ flat shape. */
+  genre?: RawGenreNode;
+  ancestors?: RawGenreNode[];
+  siblings?: RawGenreNode[];
+  children?: RawGenreNode[] | Array<{ child: RawGenreNode }>;
 }
 
 function mapGenre(raw: RawGenreNode | undefined): IchibaGenreNode {
   return {
     genreId: String(raw?.genreId ?? "0"),
-    genreName: raw?.genreName ?? "",
-    genreLevel: raw?.genreLevel ?? 0,
-    taxonomyId: raw?.taxonomyId ?? null,
+    genreName: raw?.nameJa ?? raw?.genreName ?? "",
+    genreLevel: raw?.level ?? raw?.genreLevel ?? 0,
   };
+}
+
+/**
+ * Children come back flat ({genreId, nameJa, level}) on 20260401 but the
+ * older 20140222 shape wrapped each child as {child: {…}}. Accept both.
+ */
+function unwrapNode(node: RawGenreNode | { child?: RawGenreNode }): RawGenreNode | undefined {
+  if (!node) return undefined;
+  if ("child" in node && node.child) return node.child;
+  return node as RawGenreNode;
 }
 
 export const ichibaGenreSearchTool: ToolDefinition<typeof genreSearchInput> = {
@@ -270,24 +297,25 @@ export const ichibaGenreSearchTool: ToolDefinition<typeof genreSearchInput> = {
     "楽天市場のジャンルを参照",
   ),
   description: bilingual(
-    "Browse the Rakuten Ichiba genre (category) hierarchy. Pass '0' to list top-level genres, or a specific genre ID to fetch its parents and direct children. Useful for narrowing item searches to a specific category, or for discovering what categories exist. Returns the current genre, its ancestors, and its immediate sub-genres.",
-    "楽天市場のジャンル(カテゴリ)階層を参照します。'0' を渡すとトップレベル、特定のジャンルIDを渡すと祖先と直下の子ジャンルを取得します。商品検索を特定カテゴリに絞り込んだり、カテゴリ構造を発見するのに使えます。現在のジャンル、祖先、直下の子ジャンルを返します。",
+    "Browse the Rakuten Ichiba genre (category) hierarchy. Pass '0' to list top-level genres, or a specific genre ID to fetch its ancestors, siblings, and direct children. Useful for narrowing item searches to a specific category, or for discovering what categories exist.",
+    "楽天市場のジャンル(カテゴリ)階層を参照します。'0' を渡すとトップレベル、特定のジャンルIDを渡すと祖先・兄弟・直下の子ジャンルを取得します。商品検索を特定カテゴリに絞り込んだり、カテゴリ構造を発見するのに使えます。",
   ),
   inputSchema: genreSearchInput,
   async handler(args, config) {
     const raw = await rakutenRequest<RawGenreSearchResponse>(
       {
-        host: HOST_LEGACY,
-        path: "/services/api/IchibaGenre/Search/20140222",
+        host: HOST_OPENAPI,
+        path: "/ichibagt/api/IchibaGenre/Search/20260401",
         params: { genreId: args.genre_id },
       },
       config,
     );
 
     const result: IchibaGenreSearchResult = {
-      current: mapGenre(raw.current),
-      parents: (raw.parents ?? []).map((p) => mapGenre(p.parent)),
-      children: (raw.children ?? []).map((c) => mapGenre(c.child)),
+      current: mapGenre(raw.genre),
+      ancestors: (raw.ancestors ?? []).map((n) => mapGenre(unwrapNode(n))),
+      siblings: (raw.siblings ?? []).map((n) => mapGenre(unwrapNode(n))),
+      children: (raw.children ?? []).map((n) => mapGenre(unwrapNode(n))),
     };
 
     return result;
@@ -303,21 +331,15 @@ const tagSearchInput = z.object({
     .number()
     .int()
     .positive()
-    .optional()
     .describe(
-      "Specific tag ID to fetch. If omitted, genre_id is required and tag groups for that genre are returned. 特定のタグID。省略時は genre_id が必須で、そのジャンルのタググループ一覧を返します。",
-    ),
-  genre_id: z
-    .string()
-    .optional()
-    .describe(
-      "Genre ID to list tag groups for. Required when tag_id is omitted. ジャンルID。tag_id 省略時に必須。",
+      "Tag ID to fetch details for. Tag IDs are discoverable from ichiba_item_search responses (each item carries tagIds) and from ichiba_genre_search. タグID。ichiba_item_search のレスポンス内 tagIds や ichiba_genre_search から取得できます。",
     ),
 });
 
 export interface IchibaTag {
   tagId: number;
   tagName: string;
+  parentTagId?: number;
 }
 
 export interface IchibaTagGroup {
@@ -331,7 +353,7 @@ export interface IchibaTagSearchResult {
 }
 
 interface RawTag {
-  tag?: { tagId?: number; tagName?: string };
+  tag?: { tagId?: number; tagName?: string; parentTagId?: number };
 }
 
 interface RawTagGroup {
@@ -354,6 +376,7 @@ function mapTagGroup(raw: RawTagGroup): IchibaTagGroup {
     tags: (g.tags ?? []).map((t) => ({
       tagId: t.tag?.tagId ?? 0,
       tagName: t.tag?.tagName ?? "",
+      parentTagId: t.tag?.parentTagId,
     })),
   };
 }
@@ -361,29 +384,20 @@ function mapTagGroup(raw: RawTagGroup): IchibaTagGroup {
 export const ichibaTagSearchTool: ToolDefinition<typeof tagSearchInput> = {
   name: "ichiba_tag_search",
   title: bilingual(
-    "Search Rakuten Ichiba Tags",
-    "楽天市場のタグを検索",
+    "Look up Rakuten Ichiba Tag Details",
+    "楽天市場のタグ詳細を参照",
   ),
   description: bilingual(
-    "Fetch tag groups for a Rakuten Ichiba genre, or details for a specific tag ID. Tags are facet-style attributes (color, size, brand, etc.) that can refine a search. Pass tag_id to fetch a specific tag, or genre_id to list all tag groups defined for that genre. Useful for building faceted search UIs or refining ichiba_item_search results.",
-    "楽天市場のジャンルに紐づくタググループ、または特定のタグIDの詳細を取得します。タグはファセット型の属性(色、サイズ、ブランドなど)で、検索を絞り込めます。tag_id を渡して特定タグを、または genre_id を渡してそのジャンルに定義された全タググループを取得します。ファセット検索UIの構築や ichiba_item_search の絞り込みに有用です。",
+    "Look up details for a specific Rakuten Ichiba tag by tag ID. Tags are facet-style attributes (size, color, etc.) attached to items. Returns the tag group this tag belongs to, the tag name, and any parent tag. Tag IDs surface in ichiba_item_search item responses (each item carries an attributeIds array) and in ichiba_genre_search.",
+    "特定のタグIDの詳細を取得します。タグはファセット属性(サイズ、色など)で商品に紐づいています。タグ名、所属タググループ、親タグを返します。タグIDは ichiba_item_search の各商品 attributeIds や ichiba_genre_search から取得できます。",
   ),
   inputSchema: tagSearchInput,
   async handler(args, config) {
-    if (args.tag_id === undefined && !args.genre_id) {
-      throw new Error(
-        "Either tag_id or genre_id is required. tag_id か genre_id のいずれかが必要です。",
-      );
-    }
-    const params: Record<string, string> = {};
-    if (args.tag_id !== undefined) params.tagId = String(args.tag_id);
-    if (args.genre_id) params.genreId = args.genre_id;
-
     const raw = await rakutenRequest<RawTagSearchResponse>(
       {
-        host: HOST_LEGACY,
-        path: "/services/api/IchibaTag/Search/20140222",
-        params,
+        host: HOST_OPENAPI,
+        path: "/ichibagt/api/IchibaTag/Search/20140222",
+        params: { tagId: String(args.tag_id) },
       },
       config,
     );
@@ -497,20 +511,25 @@ export const ichibaItemRankingTool: ToolDefinition<typeof itemRankingInput> = {
 
     const raw = await rakutenRequest<RawItemRankingResponse>(
       {
-        host: HOST_LEGACY,
-        path: "/services/api/IchibaItem/Ranking/20220601",
+        host: HOST_OPENAPI,
+        path: "/ichibaranking/api/IchibaItem/Ranking/20220601",
         params,
       },
       config,
     );
 
+    // Rakuten returns the page in descending rank order (e.g. 30 → 1 on page 1).
+    // Present in natural ascending order so item[0] is rank 1 on page 1.
+    const mapped = (raw.Items ?? []).map((r) => ({
+      ...mapItem(r as RawItem),
+      rank: r.Item.rank ?? 0,
+    }));
+    mapped.sort((a, b) => a.rank - b.rank);
+
     const result: IchibaItemRankingResult = {
       title: raw.title ?? "",
       lastBuildDate: raw.lastBuildDate ?? "",
-      items: (raw.Items ?? []).map((r) => ({
-        ...mapItem(r as RawItem),
-        rank: r.Item.rank ?? 0,
-      })),
+      items: mapped,
     };
 
     return result;
@@ -591,13 +610,23 @@ const productSearchInput = z.object({
  * cross-seller comparison — useful for "is this a fair price?" workflows.
  */
 export interface IchibaProduct {
-  productNo: string;
+  /** Opaque hash ID introduced in the 2025-08 endpoint version. */
+  productId: string;
+  /** JAN/EAN-like product code. May be null for some catalog entries. */
+  productCode?: string;
+  /** Legacy product number — frequently null on the new endpoint. */
+  productNo?: string;
   productName: string;
   productCaption?: string;
+  brandName?: string;
   averagePrice: number;
   minPrice: number;
   maxPrice: number;
+  /** Sale-only price range (excludes regular-price listings). */
+  salesMinPrice?: number;
+  salesMaxPrice?: number;
   itemCount: number;
+  salesItemCount?: number;
   productImageUrl?: string;
   productUrlPC?: string;
   productUrlMobile?: string;
@@ -622,13 +651,22 @@ export interface IchibaProductSearchResult {
 
 interface RawProduct {
   Product: {
-    productNo?: string;
+    productId?: string;
+    productCode?: string | null;
+    productNo?: string | null;
     productName?: string;
     productCaption?: string;
+    brandName?: string | null;
     averagePrice?: number;
     minPrice?: number;
     maxPrice?: number;
+    salesMinPrice?: number;
+    salesMaxPrice?: number;
     itemCount?: number;
+    salesItemCount?: number;
+    /** New endpoint exposes mediumImageUrl as a string, not an array. */
+    mediumImageUrl?: string;
+    /** Legacy field kept for the old wrapped shape, just in case. */
     productImageUrl?: string;
     productUrlPC?: string;
     productUrlMobile?: string;
@@ -655,14 +693,20 @@ interface RawProductSearchResponse {
 function mapProduct(raw: RawProduct): IchibaProduct {
   const p = raw.Product;
   return {
-    productNo: p.productNo ?? "",
+    productId: p.productId ?? "",
+    productCode: p.productCode ?? undefined,
+    productNo: p.productNo ?? undefined,
     productName: p.productName ?? "",
     productCaption: p.productCaption,
+    brandName: p.brandName ?? undefined,
     averagePrice: p.averagePrice ?? 0,
     minPrice: p.minPrice ?? 0,
     maxPrice: p.maxPrice ?? 0,
+    salesMinPrice: p.salesMinPrice,
+    salesMaxPrice: p.salesMaxPrice,
     itemCount: p.itemCount ?? 0,
-    productImageUrl: p.productImageUrl,
+    salesItemCount: p.salesItemCount,
+    productImageUrl: p.mediumImageUrl ?? p.productImageUrl,
     productUrlPC: p.productUrlPC,
     productUrlMobile: p.productUrlMobile,
     makerName: p.makerName,
@@ -705,8 +749,8 @@ export const ichibaProductSearchTool: ToolDefinition<typeof productSearchInput> 
 
     const raw = await rakutenRequest<RawProductSearchResponse>(
       {
-        host: HOST_LEGACY,
-        path: "/services/api/Product/Search/20170426",
+        host: HOST_OPENAPI,
+        path: "/ichibaproduct/api/Product/Search/20250801",
         params,
       },
       config,
