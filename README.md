@@ -1,6 +1,10 @@
 # rakuten-mcp
 
+[![npm version](https://img.shields.io/npm/v/rakuten-mcp.svg)](https://www.npmjs.com/package/rakuten-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/rakuten-mcp.svg)](https://www.npmjs.com/package/rakuten-mcp)
 [![rakuten-mcp MCP server](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp/badges/score.svg)](https://glama.ai/mcp/servers/mrslbt/rakuten-mcp)
+[![MCP Badge](https://lobehub.com/badge/mcp/mrslbt-rakuten-mcp)](https://lobehub.com/mcp/mrslbt-rakuten-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Model Context Protocol server for the [Rakuten Web Service API](https://webservice.rakuten.co.jp/). 28 read-only tools across six Rakuten product families: Ichiba (marketplace), Books, Travel, Recipe, Kobo, and GORA (golf).
 
