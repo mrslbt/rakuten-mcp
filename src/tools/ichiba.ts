@@ -516,3 +516,212 @@ export const ichibaItemRankingTool: ToolDefinition<typeof itemRankingInput> = {
     return result;
   },
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_product_search — Item Price Navi (cross-seller product comparison)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const PRODUCT_SORT_OPTIONS = [
+  "standard",
+  "+reviewCount",
+  "-reviewCount",
+  "+reviewAverage",
+  "-reviewAverage",
+  "+averagePrice",
+  "-averagePrice",
+  "+releaseDate",
+  "-releaseDate",
+] as const;
+
+const productSearchInput = z.object({
+  keyword: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Product keyword. Required unless product_id is provided. 商品キーワード。product_id 省略時は必須。",
+    ),
+  product_id: z
+    .string()
+    .optional()
+    .describe(
+      "Specific product ID (format like '1:12345'). When provided, returns that product. 特定の商品ID。指定時はその商品を返します。",
+    ),
+  genre_id: z
+    .string()
+    .optional()
+    .describe(
+      "Restrict results to a specific genre. ジャンルIDで絞り込み。",
+    ),
+  maker_code: z
+    .string()
+    .optional()
+    .describe(
+      "Restrict results to a specific manufacturer (maker code). メーカーコードで絞り込み。",
+    ),
+  hits: z
+    .number()
+    .int()
+    .min(1)
+    .max(30)
+    .default(10)
+    .describe(
+      "Number of results per page (1–30, default 10). 1ページあたりの取得件数。",
+    ),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(1)
+    .describe(
+      "Page number (1+, default 1). ページ番号。",
+    ),
+  sort: z
+    .enum(PRODUCT_SORT_OPTIONS)
+    .default("standard")
+    .describe(
+      "Sort order. '+' ascending, '-' descending. 並び順。",
+    ),
+});
+
+/**
+ * Product Search differs from Item Search in that Rakuten aggregates across all
+ * sellers of the same physical product, exposing min/max/average price for
+ * cross-seller comparison — useful for "is this a fair price?" workflows.
+ */
+export interface IchibaProduct {
+  productNo: string;
+  productName: string;
+  productCaption?: string;
+  averagePrice: number;
+  minPrice: number;
+  maxPrice: number;
+  itemCount: number;
+  productImageUrl?: string;
+  productUrlPC?: string;
+  productUrlMobile?: string;
+  makerName?: string;
+  makerCode?: string;
+  genreId?: string;
+  genreName?: string;
+  reviewCount: number;
+  reviewAverage: number | string;
+  releaseDate?: string;
+}
+
+export interface IchibaProductSearchResult {
+  count: number;
+  page: number;
+  first: number;
+  last: number;
+  hits: number;
+  pageCount: number;
+  products: IchibaProduct[];
+}
+
+interface RawProduct {
+  Product: {
+    productNo?: string;
+    productName?: string;
+    productCaption?: string;
+    averagePrice?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    itemCount?: number;
+    productImageUrl?: string;
+    productUrlPC?: string;
+    productUrlMobile?: string;
+    makerName?: string;
+    makerCode?: string | number;
+    genreId?: string | number;
+    genreName?: string;
+    reviewCount?: number;
+    reviewAverage?: number | string;
+    releaseDate?: string;
+  };
+}
+
+interface RawProductSearchResponse {
+  count?: number;
+  page?: number;
+  first?: number;
+  last?: number;
+  hits?: number;
+  pageCount?: number;
+  Products?: RawProduct[];
+}
+
+function mapProduct(raw: RawProduct): IchibaProduct {
+  const p = raw.Product;
+  return {
+    productNo: p.productNo ?? "",
+    productName: p.productName ?? "",
+    productCaption: p.productCaption,
+    averagePrice: p.averagePrice ?? 0,
+    minPrice: p.minPrice ?? 0,
+    maxPrice: p.maxPrice ?? 0,
+    itemCount: p.itemCount ?? 0,
+    productImageUrl: p.productImageUrl,
+    productUrlPC: p.productUrlPC,
+    productUrlMobile: p.productUrlMobile,
+    makerName: p.makerName,
+    makerCode: p.makerCode !== undefined ? String(p.makerCode) : undefined,
+    genreId: p.genreId !== undefined ? String(p.genreId) : undefined,
+    genreName: p.genreName,
+    reviewCount: p.reviewCount ?? 0,
+    reviewAverage: p.reviewAverage ?? 0,
+    releaseDate: p.releaseDate,
+  };
+}
+
+export const ichibaProductSearchTool: ToolDefinition<typeof productSearchInput> = {
+  name: "ichiba_product_search",
+  title: bilingual(
+    "Search Rakuten Ichiba Products (Cross-Seller, with Min/Max Pricing)",
+    "楽天市場の商品検索(複数店舗横断、最安値/平均価格)",
+  ),
+  description: bilingual(
+    "Search Rakuten's Item Price Navi — cross-seller product catalogue that groups identical products across multiple shops. Returns each product with its min/max/average price across all sellers and the total number of shops carrying it. Use this (instead of ichiba_item_search) when you want to compare prices for a specific product or answer 'is this a fair price?'. Filter by maker_code to restrict to a brand.",
+    "楽天市場の商品価格ナビを検索します。同一商品を複数店舗にまたがって集約し、最安値/最高値/平均価格と取扱店舗数を返します。特定商品の価格比較や「妥当な価格か?」を判断する用途では、ichiba_item_search ではなくこちらを使用してください。maker_code でブランド絞り込みも可能。",
+  ),
+  inputSchema: productSearchInput,
+  async handler(args, config) {
+    if (!args.keyword && !args.product_id) {
+      throw new Error(
+        "Either keyword or product_id is required. keyword か product_id のいずれかが必要です。",
+      );
+    }
+
+    const params: Record<string, string> = {
+      hits: String(args.hits),
+      page: String(args.page),
+      sort: args.sort,
+    };
+    if (args.keyword) params.keyword = args.keyword;
+    if (args.product_id) params.productId = args.product_id;
+    if (args.genre_id) params.genreId = args.genre_id;
+    if (args.maker_code) params.makerCode = args.maker_code;
+
+    const raw = await rakutenRequest<RawProductSearchResponse>(
+      {
+        host: HOST_LEGACY,
+        path: "/services/api/Product/Search/20170426",
+        params,
+      },
+      config,
+    );
+
+    const result: IchibaProductSearchResult = {
+      count: raw.count ?? 0,
+      page: raw.page ?? args.page,
+      first: raw.first ?? 0,
+      last: raw.last ?? 0,
+      hits: raw.hits ?? args.hits,
+      pageCount: raw.pageCount ?? 0,
+      products: (raw.Products ?? []).map(mapProduct),
+    };
+
+    return result;
+  },
+};

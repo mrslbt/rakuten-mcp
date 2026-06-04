@@ -10,15 +10,20 @@ import {
   ichibaGenreSearchTool,
   ichibaItemRankingTool,
   ichibaItemSearchTool,
+  ichibaProductSearchTool,
   ichibaTagSearchTool,
 } from "./ichiba.js";
 
 export const tools: ToolDefinition[] = [
-  // Ichiba tools (4 of 6-7)
+  // Ichiba tools (5 of 5 — complete)
+  // Note: AttributeSearch and Item Review do NOT exist on Rakuten's API as of
+  // 2026-06-04 (verified via direct probes). Both return "Operation X doesn't
+  // exist" — they appeared in third-party docs but are not real endpoints.
   ichibaItemSearchTool,
   ichibaGenreSearchTool,
   ichibaTagSearchTool,
   ichibaItemRankingTool,
+  ichibaProductSearchTool,
   // Books tools — added Week 2
   // Travel tools — added Week 2
   // Recipe tools — added Week 3

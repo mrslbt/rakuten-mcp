@@ -21,6 +21,7 @@ import {
   ichibaGenreSearchTool,
   ichibaItemRankingTool,
   ichibaItemSearchTool,
+  ichibaProductSearchTool,
   ichibaTagSearchTool,
 } from "../src/tools/ichiba.js";
 import {
@@ -38,6 +39,10 @@ import {
   itemSearchRateLimitedThenSuccess,
   itemSearchServerError,
   itemSearchSuccess,
+  productSearchAuthInvalid,
+  productSearchRateLimitedThenSuccess,
+  productSearchServerError,
+  productSearchSuccess,
   tagSearchAuthInvalid,
   tagSearchRateLimitedThenSuccess,
   tagSearchServerError,
@@ -444,6 +449,128 @@ describe("ichibaItemRanking — handler behaviour", () => {
 
     await expect(
       ichibaItemRankingTool.handler({ genre_id: "0", page: 1 }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenServerError);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_product_search (Item Price Navi)
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("ichibaProductSearch — tool definition", () => {
+  it("registers under the expected MCP name", () => {
+    expect(ichibaProductSearchTool.name).toBe("ichiba_product_search");
+  });
+
+  it("has bilingual title and description", () => {
+    expect(ichibaProductSearchTool.title.en).toBeTruthy();
+    expect(ichibaProductSearchTool.title.ja).toBeTruthy();
+    expect(ichibaProductSearchTool.description.en).toContain("cross-seller");
+  });
+
+  it("accepts keyword alone", () => {
+    const parsed = ichibaProductSearchTool.inputSchema.parse({ keyword: "Sony WF-1000XM6" });
+    expect(parsed.keyword).toBe("Sony WF-1000XM6");
+    expect(parsed.hits).toBe(10);
+    expect(parsed.page).toBe(1);
+    expect(parsed.sort).toBe("standard");
+  });
+
+  it("accepts product_id alone", () => {
+    const parsed = ichibaProductSearchTool.inputSchema.parse({ product_id: "1:9876543" });
+    expect(parsed.product_id).toBe("1:9876543");
+  });
+
+  it("rejects empty keyword", () => {
+    const parse = () => ichibaProductSearchTool.inputSchema.parse({ keyword: "" });
+    expect(parse).toThrow();
+  });
+
+  it("rejects hits > 30", () => {
+    const parse = () => ichibaProductSearchTool.inputSchema.parse({ keyword: "test", hits: 31 });
+    expect(parse).toThrow();
+  });
+});
+
+describe("ichibaProductSearch — handler behaviour", () => {
+  it("returns mapped products with cross-seller pricing on success", async () => {
+    server.use(productSearchSuccess());
+
+    const result = await ichibaProductSearchTool.handler(
+      { keyword: "ノイズキャンセリング イヤホン", hits: 10, page: 1, sort: "standard" },
+      testConfig,
+    );
+    const r = result as {
+      count: number;
+      page: number;
+      products: Array<{
+        productNo: string;
+        productName: string;
+        averagePrice: number;
+        minPrice: number;
+        maxPrice: number;
+        itemCount: number;
+        makerName?: string;
+        reviewCount: number;
+        productUrlPC?: string;
+      }>;
+    };
+
+    expect(r.count).toBe(234);
+    expect(r.page).toBe(1);
+    expect(r.products).toHaveLength(2);
+    // First product — Bose
+    expect(r.products[0].productNo).toBe("1:9876543");
+    expect(r.products[0].makerName).toBe("Bose");
+    expect(r.products[0].minPrice).toBe(32800);
+    expect(r.products[0].maxPrice).toBe(38900);
+    expect(r.products[0].averagePrice).toBe(35640);
+    expect(r.products[0].itemCount).toBe(25);
+    expect(r.products[0].productUrlPC).toContain("product.rakuten.co.jp");
+    // Second product — Sony
+    expect(r.products[1].makerName).toBe("Sony");
+    expect(r.products[1].minPrice).toBeLessThan(r.products[1].maxPrice);
+  });
+
+  it("throws when neither keyword nor product_id provided", async () => {
+    await expect(
+      ichibaProductSearchTool.handler(
+        { hits: 10, page: 1, sort: "standard" },
+        testConfig,
+      ),
+    ).rejects.toThrow(/keyword or product_id/);
+  });
+
+  it("throws RakutenBadRequestError on 400", async () => {
+    server.use(productSearchAuthInvalid());
+
+    await expect(
+      ichibaProductSearchTool.handler(
+        { keyword: "test", hits: 10, page: 1, sort: "standard" },
+        testConfig,
+      ),
+    ).rejects.toBeInstanceOf(RakutenBadRequestError);
+  });
+
+  it("retries 429 then succeeds", async () => {
+    server.use(productSearchRateLimitedThenSuccess(1));
+
+    const result = await ichibaProductSearchTool.handler(
+      { keyword: "test", hits: 10, page: 1, sort: "standard" },
+      testConfig,
+    );
+    const r = result as { count: number };
+    expect(r.count).toBe(234);
+  });
+
+  it("retries 5xx then throws RakutenServerError", async () => {
+    server.use(productSearchServerError());
+
+    await expect(
+      ichibaProductSearchTool.handler(
+        { keyword: "test", hits: 10, page: 1, sort: "standard" },
+        testConfig,
+      ),
     ).rejects.toBeInstanceOf(RakutenServerError);
   });
 });

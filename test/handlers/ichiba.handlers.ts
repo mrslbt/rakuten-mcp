@@ -28,6 +28,8 @@ const ICHIBA_TAG_SEARCH_URL =
   "https://app.rakuten.co.jp/services/api/IchibaTag/Search/20140222";
 const ICHIBA_ITEM_RANKING_URL =
   "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601";
+const ICHIBA_PRODUCT_SEARCH_URL =
+  "https://app.rakuten.co.jp/services/api/Product/Search/20170426";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Success / no-results
@@ -232,5 +234,47 @@ export function itemRankingRateLimitedThenSuccess(failFor: number) {
       );
     }
     return HttpResponse.json(loadFixture("item_ranking_success.json"));
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Product Search handlers (Item Price Navi)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function productSearchSuccess() {
+  return http.get(ICHIBA_PRODUCT_SEARCH_URL, () => {
+    return HttpResponse.json(loadFixture("product_search_success.json"));
+  });
+}
+
+export function productSearchAuthInvalid() {
+  return http.get(ICHIBA_PRODUCT_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "wrong_parameter", error_description: "specify valid applicationId" },
+      { status: 400 },
+    );
+  });
+}
+
+export function productSearchServerError() {
+  return http.get(ICHIBA_PRODUCT_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "server_error", error_description: "internal server error" },
+      { status: 500 },
+    );
+  });
+}
+
+export function productSearchRateLimitedThenSuccess(failFor: number) {
+  let count = 0;
+  return http.get(ICHIBA_PRODUCT_SEARCH_URL, () => {
+    count++;
+    if (count <= failFor) {
+      return HttpResponse.json(
+        { error: "too_many_requests", error_description: "rate limit exceeded" },
+        { status: 429 },
+      );
+    }
+    return HttpResponse.json(loadFixture("product_search_success.json"));
   });
 }

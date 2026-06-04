@@ -1,0 +1,57 @@
+{
+  "count": 234,
+  "page": 1,
+  "first": 1,
+  "last": 2,
+  "hits": 2,
+  "carrier": 0,
+  "pageCount": 100,
+  "Products": [
+    {
+      "Product": {
+        "productNo": "1:9876543",
+        "productName": "Bose QuietComfort Ultra Earbuds",
+        "productCaption": "Bose's flagship wireless earbuds with Immersive Audio and world-class noise cancellation.",
+        "averagePrice": 35640,
+        "minPrice": 32800,
+        "maxPrice": 38900,
+        "itemCount": 25,
+        "productImageUrl": "https://image.rakuten.co.jp/com/img/product/1-9876543/medium.jpg",
+        "productImageUrlLarge": "https://image.rakuten.co.jp/com/img/product/1-9876543/large.jpg",
+        "productImageUrlSmall": "https://image.rakuten.co.jp/com/img/product/1-9876543/small.jpg",
+        "productUrlPC": "https://product.rakuten.co.jp/product/1-9876543/",
+        "productUrlMobile": "https://product.rakuten.co.jp/product/1-9876543/?force-site=mobile",
+        "makerName": "Bose",
+        "makerCode": "1234",
+        "genreId": "565910",
+        "genreName": "イヤホン・ヘッドホン",
+        "reviewCount": 156,
+        "reviewAverage": 4.5,
+        "releaseDate": "2026-04-15"
+      }
+    },
+    {
+      "Product": {
+        "productNo": "1:1234567",
+        "productName": "Sony WF-1000XM6",
+        "productCaption": "ソニーのフラッグシップ完全ワイヤレスノイズキャンセリングイヤホン。",
+        "averagePrice": 41800,
+        "minPrice": 39800,
+        "maxPrice": 44900,
+        "itemCount": 42,
+        "productImageUrl": "https://image.rakuten.co.jp/com/img/product/1-1234567/medium.jpg",
+        "productImageUrlLarge": "https://image.rakuten.co.jp/com/img/product/1-1234567/large.jpg",
+        "productImageUrlSmall": "https://image.rakuten.co.jp/com/img/product/1-1234567/small.jpg",
+        "productUrlPC": "https://product.rakuten.co.jp/product/1-1234567/",
+        "productUrlMobile": "https://product.rakuten.co.jp/product/1-1234567/?force-site=mobile",
+        "makerName": "Sony",
+        "makerCode": "5678",
+        "genreId": "565910",
+        "genreName": "イヤホン・ヘッドホン",
+        "reviewCount": 312,
+        "reviewAverage": 4.6,
+        "releaseDate": "2026-05-20"
+      }
+    }
+  ]
+}
