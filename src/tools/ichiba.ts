@@ -214,3 +214,305 @@ export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
     return result;
   },
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_genre_search — Browse Rakuten Ichiba genre tree
+// ──────────────────────────────────────────────────────────────────────────────
+
+const genreSearchInput = z.object({
+  genre_id: z
+    .string()
+    .default("0")
+    .describe(
+      "Genre ID to query. '0' returns the top-level genres; pass a child genre ID to drill down. ジャンルID。'0' はトップレベル。子ジャンルIDを渡して掘り下げます。",
+    ),
+});
+
+export interface IchibaGenreNode {
+  genreId: string;
+  genreName: string;
+  genreLevel: number;
+  taxonomyId?: number | null;
+}
+
+export interface IchibaGenreSearchResult {
+  current: IchibaGenreNode;
+  parents: IchibaGenreNode[];
+  children: IchibaGenreNode[];
+}
+
+interface RawGenreNode {
+  genreId?: number | string;
+  genreName?: string;
+  genreLevel?: number;
+  taxonomyId?: number | null;
+}
+
+interface RawGenreSearchResponse {
+  current?: RawGenreNode;
+  parents?: Array<{ parent: RawGenreNode }>;
+  children?: Array<{ child: RawGenreNode }>;
+}
+
+function mapGenre(raw: RawGenreNode | undefined): IchibaGenreNode {
+  return {
+    genreId: String(raw?.genreId ?? "0"),
+    genreName: raw?.genreName ?? "",
+    genreLevel: raw?.genreLevel ?? 0,
+    taxonomyId: raw?.taxonomyId ?? null,
+  };
+}
+
+export const ichibaGenreSearchTool: ToolDefinition<typeof genreSearchInput> = {
+  name: "ichiba_genre_search",
+  title: bilingual(
+    "Browse Rakuten Ichiba Genres",
+    "楽天市場のジャンルを参照",
+  ),
+  description: bilingual(
+    "Browse the Rakuten Ichiba genre (category) hierarchy. Pass '0' to list top-level genres, or a specific genre ID to fetch its parents and direct children. Useful for narrowing item searches to a specific category, or for discovering what categories exist. Returns the current genre, its ancestors, and its immediate sub-genres.",
+    "楽天市場のジャンル(カテゴリ)階層を参照します。'0' を渡すとトップレベル、特定のジャンルIDを渡すと祖先と直下の子ジャンルを取得します。商品検索を特定カテゴリに絞り込んだり、カテゴリ構造を発見するのに使えます。現在のジャンル、祖先、直下の子ジャンルを返します。",
+  ),
+  inputSchema: genreSearchInput,
+  async handler(args, config) {
+    const raw = await rakutenRequest<RawGenreSearchResponse>(
+      {
+        host: HOST_LEGACY,
+        path: "/services/api/IchibaGenre/Search/20140222",
+        params: { genreId: args.genre_id },
+      },
+      config,
+    );
+
+    const result: IchibaGenreSearchResult = {
+      current: mapGenre(raw.current),
+      parents: (raw.parents ?? []).map((p) => mapGenre(p.parent)),
+      children: (raw.children ?? []).map((c) => mapGenre(c.child)),
+    };
+
+    return result;
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_tag_search — Fetch Rakuten Ichiba tag groups for a genre
+// ──────────────────────────────────────────────────────────────────────────────
+
+const tagSearchInput = z.object({
+  tag_id: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "Specific tag ID to fetch. If omitted, genre_id is required and tag groups for that genre are returned. 特定のタグID。省略時は genre_id が必須で、そのジャンルのタググループ一覧を返します。",
+    ),
+  genre_id: z
+    .string()
+    .optional()
+    .describe(
+      "Genre ID to list tag groups for. Required when tag_id is omitted. ジャンルID。tag_id 省略時に必須。",
+    ),
+});
+
+export interface IchibaTag {
+  tagId: number;
+  tagName: string;
+}
+
+export interface IchibaTagGroup {
+  tagGroupId: number;
+  tagGroupName: string;
+  tags: IchibaTag[];
+}
+
+export interface IchibaTagSearchResult {
+  tagGroups: IchibaTagGroup[];
+}
+
+interface RawTag {
+  tag?: { tagId?: number; tagName?: string };
+}
+
+interface RawTagGroup {
+  tagGroup?: {
+    tagGroupId?: number;
+    tagGroupName?: string;
+    tags?: RawTag[];
+  };
+}
+
+interface RawTagSearchResponse {
+  tagGroups?: RawTagGroup[];
+}
+
+function mapTagGroup(raw: RawTagGroup): IchibaTagGroup {
+  const g = raw.tagGroup ?? {};
+  return {
+    tagGroupId: g.tagGroupId ?? 0,
+    tagGroupName: g.tagGroupName ?? "",
+    tags: (g.tags ?? []).map((t) => ({
+      tagId: t.tag?.tagId ?? 0,
+      tagName: t.tag?.tagName ?? "",
+    })),
+  };
+}
+
+export const ichibaTagSearchTool: ToolDefinition<typeof tagSearchInput> = {
+  name: "ichiba_tag_search",
+  title: bilingual(
+    "Search Rakuten Ichiba Tags",
+    "楽天市場のタグを検索",
+  ),
+  description: bilingual(
+    "Fetch tag groups for a Rakuten Ichiba genre, or details for a specific tag ID. Tags are facet-style attributes (color, size, brand, etc.) that can refine a search. Pass tag_id to fetch a specific tag, or genre_id to list all tag groups defined for that genre. Useful for building faceted search UIs or refining ichiba_item_search results.",
+    "楽天市場のジャンルに紐づくタググループ、または特定のタグIDの詳細を取得します。タグはファセット型の属性(色、サイズ、ブランドなど)で、検索を絞り込めます。tag_id を渡して特定タグを、または genre_id を渡してそのジャンルに定義された全タググループを取得します。ファセット検索UIの構築や ichiba_item_search の絞り込みに有用です。",
+  ),
+  inputSchema: tagSearchInput,
+  async handler(args, config) {
+    if (args.tag_id === undefined && !args.genre_id) {
+      throw new Error(
+        "Either tag_id or genre_id is required. tag_id か genre_id のいずれかが必要です。",
+      );
+    }
+    const params: Record<string, string> = {};
+    if (args.tag_id !== undefined) params.tagId = String(args.tag_id);
+    if (args.genre_id) params.genreId = args.genre_id;
+
+    const raw = await rakutenRequest<RawTagSearchResponse>(
+      {
+        host: HOST_LEGACY,
+        path: "/services/api/IchibaTag/Search/20140222",
+        params,
+      },
+      config,
+    );
+
+    const result: IchibaTagSearchResult = {
+      tagGroups: (raw.tagGroups ?? []).map(mapTagGroup),
+    };
+
+    return result;
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_item_ranking — Get bestseller rankings, overall or by genre
+// ──────────────────────────────────────────────────────────────────────────────
+
+const ITEM_RANKING_PERIODS = ["realtime", "daily", "weekly", "monthly", "yearly"] as const;
+const ITEM_RANKING_AGES = ["10s", "20s", "30s", "40s", "50s", "60s", "70s"] as const;
+const ITEM_RANKING_SEXES = ["female", "male"] as const;
+
+const itemRankingInput = z.object({
+  genre_id: z
+    .string()
+    .default("0")
+    .describe(
+      "Genre ID for the ranking. '0' returns the overall ranking. 0はジャンル全体のランキング。",
+    ),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .max(34)
+    .default(1)
+    .describe(
+      "Page number (1–34; Rakuten caps rankings at ~1000 items). ページ番号(1〜34)。",
+    ),
+  period: z
+    .enum(ITEM_RANKING_PERIODS)
+    .optional()
+    .describe(
+      "Time window for the ranking. Default depends on Rakuten's current configuration. ランキングの集計期間。",
+    ),
+  age: z
+    .enum(ITEM_RANKING_AGES)
+    .optional()
+    .describe(
+      "Filter to a specific age demographic (e.g., '20s' = users in their 20s). 年代フィルタ。",
+    ),
+  sex: z
+    .enum(ITEM_RANKING_SEXES)
+    .optional()
+    .describe(
+      "Filter to a specific gender demographic. 性別フィルタ。",
+    ),
+});
+
+export interface IchibaRankedItem extends IchibaItem {
+  rank: number;
+}
+
+export interface IchibaItemRankingResult {
+  title: string;
+  lastBuildDate: string;
+  items: IchibaRankedItem[];
+}
+
+interface RawRankedItem {
+  Item: RawItem["Item"] & { rank?: number };
+}
+
+interface RawItemRankingResponse {
+  title?: string;
+  lastBuildDate?: string;
+  Items?: RawRankedItem[];
+}
+
+const AGE_TO_PARAM: Record<typeof ITEM_RANKING_AGES[number], string> = {
+  "10s": "10",
+  "20s": "20",
+  "30s": "30",
+  "40s": "40",
+  "50s": "50",
+  "60s": "60",
+  "70s": "70",
+};
+
+const SEX_TO_PARAM: Record<typeof ITEM_RANKING_SEXES[number], string> = {
+  female: "0",
+  male: "1",
+};
+
+export const ichibaItemRankingTool: ToolDefinition<typeof itemRankingInput> = {
+  name: "ichiba_item_ranking",
+  title: bilingual(
+    "Get Rakuten Ichiba Bestseller Ranking",
+    "楽天市場の売れ筋ランキングを取得",
+  ),
+  description: bilingual(
+    "Get the Rakuten Ichiba bestseller ranking — overall or filtered by genre, time period, age, and gender demographic. Returns ranked items with their rank, price, review stats, and purchase URL. Use ichiba_genre_search to find specific genre IDs.",
+    "楽天市場の売れ筋ランキングを取得します。総合または、ジャンル/集計期間/年代/性別で絞り込み可能。順位、価格、レビュー、購入URLを含むランキング一覧を返します。ジャンルIDの検索には ichiba_genre_search を使用してください。",
+  ),
+  inputSchema: itemRankingInput,
+  async handler(args, config) {
+    const params: Record<string, string> = {
+      genreId: args.genre_id,
+      page: String(args.page),
+    };
+    if (args.period) params.period = args.period;
+    if (args.age) params.age = AGE_TO_PARAM[args.age];
+    if (args.sex) params.sex = SEX_TO_PARAM[args.sex];
+
+    const raw = await rakutenRequest<RawItemRankingResponse>(
+      {
+        host: HOST_LEGACY,
+        path: "/services/api/IchibaItem/Ranking/20220601",
+        params,
+      },
+      config,
+    );
+
+    const result: IchibaItemRankingResult = {
+      title: raw.title ?? "",
+      lastBuildDate: raw.lastBuildDate ?? "",
+      items: (raw.Items ?? []).map((r) => ({
+        ...mapItem(r as RawItem),
+        rank: r.Item.rank ?? 0,
+      })),
+    };
+
+    return result;
+  },
+};

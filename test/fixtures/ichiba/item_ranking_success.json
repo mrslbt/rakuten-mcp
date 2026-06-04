@@ -1,0 +1,98 @@
+{
+  "title": "楽天市場の総合ランキング",
+  "lastBuildDate": "2026-06-04T12:00:00",
+  "Items": [
+    {
+      "Item": {
+        "rank": 1,
+        "itemName": "ふるさと納税 訳あり 鮭切り身 約2kg",
+        "catchcopy": "大容量お買い得",
+        "itemCode": "furusato-shop:fs100",
+        "itemPrice": 10000,
+        "itemUrl": "https://item.rakuten.co.jp/furusato-shop/fs100/",
+        "shopName": "ふるさと納税ショップ",
+        "shopCode": "furusato-shop",
+        "shopUrl": "https://www.rakuten.co.jp/furusato-shop/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/furusato-shop/cabinet/fs100.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 0,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 1,
+        "affiliateRate": 1,
+        "reviewCount": 8932,
+        "reviewAverage": 4.61,
+        "pointRate": 1,
+        "giftFlag": 0,
+        "shipOverseasFlag": 0,
+        "asurakuFlag": 0,
+        "genreId": "100227"
+      }
+    },
+    {
+      "Item": {
+        "rank": 2,
+        "itemName": "ふるさと納税 北海道産ホタテ貝柱 500g",
+        "catchcopy": "新鮮急速冷凍",
+        "itemCode": "hokkaido-fs:hf200",
+        "itemPrice": 12000,
+        "itemUrl": "https://item.rakuten.co.jp/hokkaido-fs/hf200/",
+        "shopName": "北海道ふるさと納税",
+        "shopCode": "hokkaido-fs",
+        "shopUrl": "https://www.rakuten.co.jp/hokkaido-fs/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/hokkaido-fs/cabinet/hf200.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 0,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 0,
+        "affiliateRate": 1,
+        "reviewCount": 3104,
+        "reviewAverage": 4.72,
+        "pointRate": 1,
+        "giftFlag": 0,
+        "shipOverseasFlag": 0,
+        "asurakuFlag": 0,
+        "genreId": "100227"
+      }
+    },
+    {
+      "Item": {
+        "rank": 3,
+        "itemName": "完全ワイヤレスイヤホン Bluetooth 5.3 ANC",
+        "catchcopy": "高音質&ロングバッテリー",
+        "itemCode": "earphone-shop:10001234",
+        "itemPrice": 4980,
+        "itemUrl": "https://item.rakuten.co.jp/earphone-shop/10001234/",
+        "shopName": "イヤホン専門店",
+        "shopCode": "earphone-shop",
+        "shopUrl": "https://www.rakuten.co.jp/earphone-shop/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/earphone-shop/cabinet/10001234.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 1,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 0,
+        "affiliateRate": 4,
+        "reviewCount": 1842,
+        "reviewAverage": 4.42,
+        "pointRate": 1,
+        "giftFlag": 0,
+        "shipOverseasFlag": 0,
+        "asurakuFlag": 1,
+        "asurakuClosingTime": "13:00",
+        "asurakuArea": "東京都, 神奈川県, 千葉県, 埼玉県",
+        "genreId": "565910"
+      }
+    }
+  ]
+}

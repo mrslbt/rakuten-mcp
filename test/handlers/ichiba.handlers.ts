@@ -22,6 +22,12 @@ function loadFixture(name: string): unknown {
 
 const ICHIBA_ITEM_SEARCH_URL =
   "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601";
+const ICHIBA_GENRE_SEARCH_URL =
+  "https://app.rakuten.co.jp/services/api/IchibaGenre/Search/20140222";
+const ICHIBA_TAG_SEARCH_URL =
+  "https://app.rakuten.co.jp/services/api/IchibaTag/Search/20140222";
+const ICHIBA_ITEM_RANKING_URL =
+  "https://app.rakuten.co.jp/services/api/IchibaItem/Ranking/20220601";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Success / no-results
@@ -94,5 +100,137 @@ export function itemSearchRateLimitedThenSuccess(failFor: number, retryAfterSeco
       );
     }
     return HttpResponse.json(loadFixture("item_search_success.json"));
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Genre Search handlers
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function genreSearchTop() {
+  return http.get(ICHIBA_GENRE_SEARCH_URL, () => {
+    return HttpResponse.json(loadFixture("genre_search_top.json"));
+  });
+}
+
+export function genreSearchNested() {
+  return http.get(ICHIBA_GENRE_SEARCH_URL, () => {
+    return HttpResponse.json(loadFixture("genre_search_nested.json"));
+  });
+}
+
+export function genreSearchAuthInvalid() {
+  return http.get(ICHIBA_GENRE_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "wrong_parameter", error_description: "specify valid applicationId" },
+      { status: 400 },
+    );
+  });
+}
+
+export function genreSearchServerError() {
+  return http.get(ICHIBA_GENRE_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "server_error", error_description: "internal server error" },
+      { status: 500 },
+    );
+  });
+}
+
+export function genreSearchRateLimitedThenSuccess(failFor: number) {
+  let count = 0;
+  return http.get(ICHIBA_GENRE_SEARCH_URL, () => {
+    count++;
+    if (count <= failFor) {
+      return HttpResponse.json(
+        { error: "too_many_requests", error_description: "rate limit exceeded" },
+        { status: 429 },
+      );
+    }
+    return HttpResponse.json(loadFixture("genre_search_top.json"));
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tag Search handlers
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function tagSearchSuccess() {
+  return http.get(ICHIBA_TAG_SEARCH_URL, () => {
+    return HttpResponse.json(loadFixture("tag_search_success.json"));
+  });
+}
+
+export function tagSearchAuthInvalid() {
+  return http.get(ICHIBA_TAG_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "wrong_parameter", error_description: "specify valid applicationId" },
+      { status: 400 },
+    );
+  });
+}
+
+export function tagSearchServerError() {
+  return http.get(ICHIBA_TAG_SEARCH_URL, () => {
+    return HttpResponse.json(
+      { error: "server_error", error_description: "internal server error" },
+      { status: 500 },
+    );
+  });
+}
+
+export function tagSearchRateLimitedThenSuccess(failFor: number) {
+  let count = 0;
+  return http.get(ICHIBA_TAG_SEARCH_URL, () => {
+    count++;
+    if (count <= failFor) {
+      return HttpResponse.json(
+        { error: "too_many_requests", error_description: "rate limit exceeded" },
+        { status: 429 },
+      );
+    }
+    return HttpResponse.json(loadFixture("tag_search_success.json"));
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Item Ranking handlers
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function itemRankingSuccess() {
+  return http.get(ICHIBA_ITEM_RANKING_URL, () => {
+    return HttpResponse.json(loadFixture("item_ranking_success.json"));
+  });
+}
+
+export function itemRankingAuthInvalid() {
+  return http.get(ICHIBA_ITEM_RANKING_URL, () => {
+    return HttpResponse.json(
+      { error: "wrong_parameter", error_description: "specify valid applicationId" },
+      { status: 400 },
+    );
+  });
+}
+
+export function itemRankingServerError() {
+  return http.get(ICHIBA_ITEM_RANKING_URL, () => {
+    return HttpResponse.json(
+      { error: "server_error", error_description: "internal server error" },
+      { status: 500 },
+    );
+  });
+}
+
+export function itemRankingRateLimitedThenSuccess(failFor: number) {
+  let count = 0;
+  return http.get(ICHIBA_ITEM_RANKING_URL, () => {
+    count++;
+    if (count <= failFor) {
+      return HttpResponse.json(
+        { error: "too_many_requests", error_description: "rate limit exceeded" },
+        { status: 429 },
+      );
+    }
+    return HttpResponse.json(loadFixture("item_ranking_success.json"));
   });
 }

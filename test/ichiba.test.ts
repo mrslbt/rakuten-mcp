@@ -17,13 +17,31 @@ import {
   RakutenBadRequestError,
   RakutenServerError,
 } from "../src/errors.js";
-import { ichibaItemSearchTool } from "../src/tools/ichiba.js";
 import {
+  ichibaGenreSearchTool,
+  ichibaItemRankingTool,
+  ichibaItemSearchTool,
+  ichibaTagSearchTool,
+} from "../src/tools/ichiba.js";
+import {
+  genreSearchAuthInvalid,
+  genreSearchNested,
+  genreSearchRateLimitedThenSuccess,
+  genreSearchServerError,
+  genreSearchTop,
+  itemRankingAuthInvalid,
+  itemRankingRateLimitedThenSuccess,
+  itemRankingServerError,
+  itemRankingSuccess,
   itemSearchAuthInvalid,
   itemSearchEmpty,
   itemSearchRateLimitedThenSuccess,
   itemSearchServerError,
   itemSearchSuccess,
+  tagSearchAuthInvalid,
+  tagSearchRateLimitedThenSuccess,
+  tagSearchServerError,
+  tagSearchSuccess,
 } from "./handlers/ichiba.handlers.js";
 import { server } from "./msw-server.js";
 
@@ -172,6 +190,260 @@ describe("ichibaItemSearch — handler behaviour", () => {
         { keyword: "test", hits: 10, page: 1, sort: "standard" },
         testConfig,
       ),
+    ).rejects.toBeInstanceOf(RakutenServerError);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_genre_search
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("ichibaGenreSearch — tool definition", () => {
+  it("registers under the expected MCP name", () => {
+    expect(ichibaGenreSearchTool.name).toBe("ichiba_genre_search");
+  });
+
+  it("has bilingual title and description", () => {
+    expect(ichibaGenreSearchTool.title.en).toBeTruthy();
+    expect(ichibaGenreSearchTool.title.ja).toBeTruthy();
+  });
+
+  it("defaults genre_id to '0' (top level)", () => {
+    const parsed = ichibaGenreSearchTool.inputSchema.parse({});
+    expect(parsed.genre_id).toBe("0");
+  });
+});
+
+describe("ichibaGenreSearch — handler behaviour", () => {
+  it("returns top-level genres on '0'", async () => {
+    server.use(genreSearchTop());
+
+    const result = await ichibaGenreSearchTool.handler({ genre_id: "0" }, testConfig);
+    const r = result as {
+      current: { genreId: string; genreName: string; genreLevel: number };
+      parents: unknown[];
+      children: Array<{ genreId: string; genreName: string }>;
+    };
+
+    expect(r.current.genreId).toBe("0");
+    expect(r.current.genreName).toBe("ジャンルトップ");
+    expect(r.parents).toEqual([]);
+    expect(r.children).toHaveLength(5);
+    expect(r.children[0].genreName).toBe("パソコン・周辺機器");
+  });
+
+  it("returns nested parents and children for a non-root genre", async () => {
+    server.use(genreSearchNested());
+
+    const result = await ichibaGenreSearchTool.handler({ genre_id: "565910" }, testConfig);
+    const r = result as {
+      current: { genreId: string; genreLevel: number };
+      parents: Array<{ genreId: string; genreName: string }>;
+      children: Array<{ genreId: string }>;
+    };
+
+    expect(r.current.genreId).toBe("565910");
+    expect(r.current.genreLevel).toBe(3);
+    expect(r.parents).toHaveLength(3);
+    expect(r.parents[0].genreId).toBe("0");
+    expect(r.parents[2].genreName).toBe("オーディオ");
+    expect(r.children).toHaveLength(2);
+  });
+
+  it("throws RakutenBadRequestError on 400", async () => {
+    server.use(genreSearchAuthInvalid());
+
+    await expect(
+      ichibaGenreSearchTool.handler({ genre_id: "0" }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenBadRequestError);
+  });
+
+  it("retries 429 then succeeds", async () => {
+    server.use(genreSearchRateLimitedThenSuccess(1));
+
+    const result = await ichibaGenreSearchTool.handler({ genre_id: "0" }, testConfig);
+    const r = result as { children: unknown[] };
+    expect(r.children).toHaveLength(5);
+  });
+
+  it("retries 5xx then throws RakutenServerError", async () => {
+    server.use(genreSearchServerError());
+
+    await expect(
+      ichibaGenreSearchTool.handler({ genre_id: "0" }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenServerError);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_tag_search
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("ichibaTagSearch — tool definition", () => {
+  it("registers under the expected MCP name", () => {
+    expect(ichibaTagSearchTool.name).toBe("ichiba_tag_search");
+  });
+
+  it("has bilingual title and description", () => {
+    expect(ichibaTagSearchTool.title.en).toBeTruthy();
+    expect(ichibaTagSearchTool.title.ja).toBeTruthy();
+  });
+
+  it("accepts tag_id alone", () => {
+    const parsed = ichibaTagSearchTool.inputSchema.parse({ tag_id: 1000651 });
+    expect(parsed.tag_id).toBe(1000651);
+  });
+
+  it("accepts genre_id alone", () => {
+    const parsed = ichibaTagSearchTool.inputSchema.parse({ genre_id: "565910" });
+    expect(parsed.genre_id).toBe("565910");
+  });
+
+  it("rejects negative tag_id", () => {
+    const parse = () => ichibaTagSearchTool.inputSchema.parse({ tag_id: -1 });
+    expect(parse).toThrow();
+  });
+});
+
+describe("ichibaTagSearch — handler behaviour", () => {
+  it("returns tag groups for a genre", async () => {
+    server.use(tagSearchSuccess());
+
+    const result = await ichibaTagSearchTool.handler({ genre_id: "565910" }, testConfig);
+    const r = result as {
+      tagGroups: Array<{
+        tagGroupId: number;
+        tagGroupName: string;
+        tags: Array<{ tagId: number; tagName: string }>;
+      }>;
+    };
+
+    expect(r.tagGroups).toHaveLength(2);
+    expect(r.tagGroups[0].tagGroupName).toBe("接続方式");
+    expect(r.tagGroups[0].tags).toHaveLength(3);
+    expect(r.tagGroups[0].tags[0].tagName).toBe("Bluetooth");
+  });
+
+  it("throws when neither tag_id nor genre_id provided", async () => {
+    await expect(
+      ichibaTagSearchTool.handler({}, testConfig),
+    ).rejects.toThrow(/tag_id or genre_id/);
+  });
+
+  it("throws RakutenBadRequestError on 400", async () => {
+    server.use(tagSearchAuthInvalid());
+
+    await expect(
+      ichibaTagSearchTool.handler({ tag_id: 1000651 }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenBadRequestError);
+  });
+
+  it("retries 429 then succeeds", async () => {
+    server.use(tagSearchRateLimitedThenSuccess(1));
+
+    const result = await ichibaTagSearchTool.handler({ genre_id: "565910" }, testConfig);
+    const r = result as { tagGroups: unknown[] };
+    expect(r.tagGroups).toHaveLength(2);
+  });
+
+  it("retries 5xx then throws RakutenServerError", async () => {
+    server.use(tagSearchServerError());
+
+    await expect(
+      ichibaTagSearchTool.handler({ tag_id: 1000651 }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenServerError);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ichiba_item_ranking
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("ichibaItemRanking — tool definition", () => {
+  it("registers under the expected MCP name", () => {
+    expect(ichibaItemRankingTool.name).toBe("ichiba_item_ranking");
+  });
+
+  it("has bilingual title and description", () => {
+    expect(ichibaItemRankingTool.title.en).toBeTruthy();
+    expect(ichibaItemRankingTool.title.ja).toBeTruthy();
+  });
+
+  it("defaults genre_id to '0' (overall) and page to 1", () => {
+    const parsed = ichibaItemRankingTool.inputSchema.parse({});
+    expect(parsed.genre_id).toBe("0");
+    expect(parsed.page).toBe(1);
+  });
+
+  it("accepts demographic filters", () => {
+    const parsed = ichibaItemRankingTool.inputSchema.parse({
+      age: "30s",
+      sex: "female",
+      period: "weekly",
+    });
+    expect(parsed.age).toBe("30s");
+    expect(parsed.sex).toBe("female");
+    expect(parsed.period).toBe("weekly");
+  });
+
+  it("rejects page > 34", () => {
+    const parse = () => ichibaItemRankingTool.inputSchema.parse({ page: 35 });
+    expect(parse).toThrow();
+  });
+
+  it("rejects invalid sex value", () => {
+    const parse = () => ichibaItemRankingTool.inputSchema.parse({ sex: "other" as unknown as "female" });
+    expect(parse).toThrow();
+  });
+});
+
+describe("ichibaItemRanking — handler behaviour", () => {
+  it("returns ranked items with rank field", async () => {
+    server.use(itemRankingSuccess());
+
+    const result = await ichibaItemRankingTool.handler(
+      { genre_id: "0", page: 1 },
+      testConfig,
+    );
+    const r = result as {
+      title: string;
+      lastBuildDate: string;
+      items: Array<{ rank: number; itemName: string; itemPrice: number }>;
+    };
+
+    expect(r.title).toBe("楽天市場の総合ランキング");
+    expect(r.lastBuildDate).toBe("2026-06-04T12:00:00");
+    expect(r.items).toHaveLength(3);
+    expect(r.items[0].rank).toBe(1);
+    expect(r.items[1].rank).toBe(2);
+    expect(r.items[2].rank).toBe(3);
+    expect(r.items[2].itemName).toContain("イヤホン");
+  });
+
+  it("throws RakutenBadRequestError on 400", async () => {
+    server.use(itemRankingAuthInvalid());
+
+    await expect(
+      ichibaItemRankingTool.handler({ genre_id: "0", page: 1 }, testConfig),
+    ).rejects.toBeInstanceOf(RakutenBadRequestError);
+  });
+
+  it("retries 429 then succeeds", async () => {
+    server.use(itemRankingRateLimitedThenSuccess(1));
+
+    const result = await ichibaItemRankingTool.handler(
+      { genre_id: "0", page: 1 },
+      testConfig,
+    );
+    const r = result as { items: unknown[] };
+    expect(r.items).toHaveLength(3);
+  });
+
+  it("retries 5xx then throws RakutenServerError", async () => {
+    server.use(itemRankingServerError());
+
+    await expect(
+      ichibaItemRankingTool.handler({ genre_id: "0", page: 1 }, testConfig),
     ).rejects.toBeInstanceOf(RakutenServerError);
   });
 });

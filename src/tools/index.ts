@@ -6,11 +6,19 @@
  */
 
 import type { ToolDefinition } from "./types.js";
-import { ichibaItemSearchTool } from "./ichiba.js";
+import {
+  ichibaGenreSearchTool,
+  ichibaItemRankingTool,
+  ichibaItemSearchTool,
+  ichibaTagSearchTool,
+} from "./ichiba.js";
 
 export const tools: ToolDefinition[] = [
-  // Ichiba tools (1 of 6-7)
+  // Ichiba tools (4 of 6-7)
   ichibaItemSearchTool,
+  ichibaGenreSearchTool,
+  ichibaTagSearchTool,
+  ichibaItemRankingTool,
   // Books tools — added Week 2
   // Travel tools — added Week 2
   // Recipe tools — added Week 3

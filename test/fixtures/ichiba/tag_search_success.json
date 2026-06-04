@@ -1,0 +1,25 @@
+{
+  "tagGroups": [
+    {
+      "tagGroup": {
+        "tagGroupId": 1009,
+        "tagGroupName": "接続方式",
+        "tags": [
+          { "tag": { "tagId": 1000651, "tagName": "Bluetooth" } },
+          { "tag": { "tagId": 1000652, "tagName": "有線" } },
+          { "tag": { "tagId": 1000653, "tagName": "USB" } }
+        ]
+      }
+    },
+    {
+      "tagGroup": {
+        "tagGroupId": 1010,
+        "tagGroupName": "ノイズキャンセリング",
+        "tags": [
+          { "tag": { "tagId": 1000701, "tagName": "ANC対応" } },
+          { "tag": { "tagId": 1000702, "tagName": "ANC非対応" } }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "current": {
+    "genreId": 565910,
+    "genreName": "イヤホン・ヘッドホン",
+    "genreLevel": 3,
+    "taxonomyId": null
+  },
+  "parents": [
+    { "parent": { "genreId": 0, "genreName": "ジャンルトップ", "genreLevel": 0, "taxonomyId": null } },
+    { "parent": { "genreId": 558885, "genreName": "家電", "genreLevel": 1, "taxonomyId": null } },
+    { "parent": { "genreId": 562630, "genreName": "オーディオ", "genreLevel": 2, "taxonomyId": null } }
+  ],
+  "children": [
+    { "child": { "genreId": 565911, "genreName": "イヤホン", "genreLevel": 4, "taxonomyId": null } },
+    { "child": { "genreId": 565912, "genreName": "ヘッドホン", "genreLevel": 4, "taxonomyId": null } }
+  ]
+}

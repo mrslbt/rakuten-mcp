@@ -1,0 +1,16 @@
+{
+  "current": {
+    "genreId": 0,
+    "genreName": "ジャンルトップ",
+    "genreLevel": 0,
+    "taxonomyId": null
+  },
+  "parents": [],
+  "children": [
+    { "child": { "genreId": 100371, "genreName": "パソコン・周辺機器", "genreLevel": 1, "taxonomyId": null } },
+    { "child": { "genreId": 100026, "genreName": "本・雑誌・コミック", "genreLevel": 1, "taxonomyId": null } },
+    { "child": { "genreId": 100227, "genreName": "食品", "genreLevel": 1, "taxonomyId": null } },
+    { "child": { "genreId": 558885, "genreName": "家電", "genreLevel": 1, "taxonomyId": null } },
+    { "child": { "genreId": 100433, "genreName": "レディースファッション", "genreLevel": 1, "taxonomyId": null } }
+  ]
+}
