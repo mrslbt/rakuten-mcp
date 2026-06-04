@@ -1,0 +1,78 @@
+name: Release
+
+# Triggered when a v* tag is pushed. Tag naming determines the npm dist-tag:
+#   v1.0.0-alpha.X → published with --tag alpha
+#   v1.0.0-beta.X  → published with --tag beta
+#   v1.0.0         → published with --tag latest
+#
+# Requires repo secret NPM_TOKEN — a Granular Access Token with "Bypass 2FA"
+# enabled, scoped to rakuten-mcp (read+write). Create at:
+#   https://www.npmjs.com/settings/mrslbt/tokens
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write  # required for npm provenance
+
+jobs:
+  release:
+    name: build, test, publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Determine npm dist-tag from git tag
+        id: dist_tag
+        run: |
+          GIT_TAG="${GITHUB_REF#refs/tags/}"
+          echo "git tag: ${GIT_TAG}"
+          case "${GIT_TAG}" in
+            *-alpha*)  echo "tag=alpha"  >> "$GITHUB_OUTPUT" ;;
+            *-beta*)   echo "tag=beta"   >> "$GITHUB_OUTPUT" ;;
+            *-rc*)     echo "tag=rc"     >> "$GITHUB_OUTPUT" ;;
+            *)         echo "tag=latest" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Verify package.json version matches git tag
+        run: |
+          GIT_TAG="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "${GIT_TAG}" != "${PKG_VERSION}" ]; then
+            echo "::error::git tag (v${GIT_TAG}) does not match package.json version (${PKG_VERSION})"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: npm publish --tag ${{ steps.dist_tag.outputs.tag }} --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "Published rakuten-mcp@$(node -p "require('./package.json').version") with dist-tag '${{ steps.dist_tag.outputs.tag }}'"
