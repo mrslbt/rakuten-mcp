@@ -1,0 +1,114 @@
+{
+  "count": 5283,
+  "page": 1,
+  "first": 1,
+  "last": 3,
+  "hits": 3,
+  "carrier": 0,
+  "pageCount": 100,
+  "Items": [
+    {
+      "Item": {
+        "itemName": "【公式】完全ワイヤレスイヤホン Bluetooth 5.3 ノイズキャンセリング 防水",
+        "catchcopy": "高音質&ロングバッテリー",
+        "itemCode": "earphone-shop:10001234",
+        "itemPrice": 4980,
+        "itemCaption": "最新Bluetooth 5.3 / ANC / 36時間再生 / IPX7防水。",
+        "itemUrl": "https://item.rakuten.co.jp/earphone-shop/10001234/",
+        "shopName": "イヤホン専門店",
+        "shopCode": "earphone-shop",
+        "shopUrl": "https://www.rakuten.co.jp/earphone-shop/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/earphone-shop/cabinet/10001234.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/earphone-shop/cabinet/10001234.jpg?_ex=64x64" }
+        ],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 1,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 0,
+        "affiliateRate": 4,
+        "startTime": "",
+        "endTime": "",
+        "reviewCount": 1842,
+        "reviewAverage": 4.42,
+        "pointRate": 1,
+        "pointRateStartTime": "",
+        "pointRateEndTime": "",
+        "giftFlag": 0,
+        "shipOverseasFlag": 0,
+        "shipOverseasArea": "",
+        "asurakuFlag": 1,
+        "asurakuClosingTime": "13:00",
+        "asurakuArea": "東京都, 神奈川県, 千葉県, 埼玉県",
+        "genreId": "565910"
+      }
+    },
+    {
+      "Item": {
+        "itemName": "ワイヤレスイヤホン 骨伝導 オープンイヤー",
+        "catchcopy": "耳をふさがない新感覚",
+        "itemCode": "audio-pro:30009999",
+        "itemPrice": 8980,
+        "itemCaption": "骨伝導タイプ、耳をふさがず長時間でも快適。",
+        "itemUrl": "https://item.rakuten.co.jp/audio-pro/30009999/",
+        "shopName": "オーディオプロ",
+        "shopCode": "audio-pro",
+        "shopUrl": "https://www.rakuten.co.jp/audio-pro/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/audio-pro/cabinet/30009999.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 1,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 1,
+        "affiliateRate": 3,
+        "reviewCount": 521,
+        "reviewAverage": 4.18,
+        "pointRate": 5,
+        "pointRateStartTime": "2026-06-01 00:00:00",
+        "pointRateEndTime": "2026-06-30 23:59:59",
+        "giftFlag": 1,
+        "shipOverseasFlag": 0,
+        "asurakuFlag": 0,
+        "genreId": "565910"
+      }
+    },
+    {
+      "Item": {
+        "itemName": "有線イヤホン 高解像度 ハイレゾ対応",
+        "catchcopy": "プロ仕様の音質",
+        "itemCode": "hifi-store:91234",
+        "itemPrice": 12800,
+        "itemCaption": "ハイレゾ対応、低音域までクリア。",
+        "itemUrl": "https://item.rakuten.co.jp/hifi-store/91234/",
+        "shopName": "HiFi専門店",
+        "shopCode": "hifi-store",
+        "shopUrl": "https://www.rakuten.co.jp/hifi-store/",
+        "mediumImageUrls": [
+          { "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/hifi-store/cabinet/91234.jpg?_ex=128x128" }
+        ],
+        "smallImageUrls": [],
+        "availability": 1,
+        "taxFlag": 0,
+        "postageFlag": 0,
+        "creditCardFlag": 1,
+        "shopOfTheYearFlag": 0,
+        "affiliateRate": 5,
+        "reviewCount": 87,
+        "reviewAverage": 4.65,
+        "pointRate": 1,
+        "giftFlag": 0,
+        "shipOverseasFlag": 1,
+        "asurakuFlag": 0,
+        "genreId": "565911"
+      }
+    }
+  ],
+  "GenreInformation": [],
+  "TagInformation": []
+}
