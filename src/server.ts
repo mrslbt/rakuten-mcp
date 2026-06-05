@@ -4,14 +4,16 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { tryLoadConfig } from "./config.js";
 import { RakutenError } from "./errors.js";
 import { prompts } from "./prompts/index.js";
 import { resources } from "./resources/index.js";
 import { tools } from "./tools/index.js";
+import { READONLY, withParamTitles } from "./tools/meta.js";
 
 const SERVER_NAME = "rakuten-mcp";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.1.0";
 
 const SERVER_INSTRUCTIONS = `rakuten-mcp exposes the public Rakuten Web Service as MCP tools across six families: Ichiba (e-commerce), Books, Travel (hotels), Recipe, Kobo (eBooks), and GORA (golf).
 
@@ -57,7 +59,8 @@ export function buildServer(): McpServer {
       {
         title: tool.title.en,
         description: `${tool.description.en}\n\n[JA] ${tool.description.ja}`,
-        inputSchema: tool.inputSchema.shape,
+        inputSchema: withParamTitles(tool.inputSchema.shape),
+        annotations: READONLY,
       },
       async (rawArgs: unknown) => {
         try {
@@ -104,11 +107,20 @@ export function buildServer(): McpServer {
 
   // Prompts
   for (const prompt of prompts) {
+    const argsSchema = Object.fromEntries(
+      (prompt.arguments ?? []).map((a) => [
+        a.name,
+        (a.required ? z.string() : z.string().optional()).describe(
+          `${a.description.en} ${a.description.ja}`,
+        ),
+      ]),
+    );
     server.registerPrompt(
       prompt.name,
       {
         title: prompt.title.en,
         description: `${prompt.description.en}\n\n[JA] ${prompt.description.ja}`,
+        argsSchema,
       },
       async (args: Record<string, string | undefined>) => {
         const text = prompt.build(args);
