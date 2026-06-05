@@ -4,5 +4,6 @@
  */
 
 import type { PromptDefinition } from "../tools/types.js";
+import { planRakutenTrip } from "./travel.js";
 
-export const prompts: PromptDefinition[] = [];
+export const prompts: PromptDefinition[] = [planRakutenTrip];

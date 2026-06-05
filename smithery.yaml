@@ -1,0 +1,28 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      rakutenAppId:
+        type: string
+        title: "Rakuten Application ID"
+        description: "Rakuten Web Service Application ID (free at https://webservice.rakuten.co.jp/). Needed for live API calls; without it the server starts and tools return a clear config error."
+      rakutenAccessKey:
+        type: string
+        title: "Rakuten Access Key"
+        description: "Rakuten Web Service Access Key that pairs with the Application ID. Needed for live API calls."
+      rakutenAffiliateId:
+        type: string
+        title: "Rakuten Affiliate ID"
+        description: "Optional affiliate ID. When set, results include affiliate links."
+    required: []
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "rakuten-mcp"],
+      env: {
+        ...(config.rakutenAppId ? { RAKUTEN_APP_ID: config.rakutenAppId } : {}),
+        ...(config.rakutenAccessKey ? { RAKUTEN_ACCESS_KEY: config.rakutenAccessKey } : {}),
+        ...(config.rakutenAffiliateId ? { RAKUTEN_AFFILIATE_ID: config.rakutenAffiliateId } : {})
+      }
+    })
