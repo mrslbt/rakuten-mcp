@@ -2,6 +2,23 @@
 
 All notable changes to `rakuten-mcp`. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [1.1.0] — 2026-06-06
+
+Quality + discoverability pass. No tool behavior changed — all 28 tools and their endpoints are unchanged.
+
+### Added
+
+- **Tool annotations** on every tool (`readOnlyHint` / `idempotentHint` / `openWorldHint`) — all tools are read-only calls to the external Rakuten API.
+- **Parameter titles** — all 141 parameters now carry a display `title` (via the central `withParamTitles` helper) alongside their bilingual description.
+- **Prompt `plan_rakuten_trip`** — a guided Travel workflow chaining `travel_get_area_class` → `travel_vacant_hotel_search` → `travel_hotel_detail_search`.
+- **`smithery.yaml`** — stdio config schema; the auth fields (`rakutenAppId` / `rakutenAccessKey` / `rakutenAffiliateId`) are optional (`required: []`), so the server starts without them and tools return a clear config error.
+
+### Changed
+
+- `server.json` description trimmed to the MCP registry's 100-character limit; version synced to 1.1.0 across `package.json`, `server.json`, and `src/server.ts`.
+
+---
+
 ## [1.0.0] — 2026-06-04
 
 First production release. 28 tools across 6 Rakuten Web Service families, all verified against the live API on the release date.
