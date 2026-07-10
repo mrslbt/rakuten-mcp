@@ -185,6 +185,7 @@ function mapItem(raw: RawItem): IchibaItem {
 
 export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
   name: "ichiba_item_search",
+  ui: { resourceUri: "ui://rakuten-mcp/item-search" },
   title: bilingual(
     "Search Rakuten Ichiba Products",
     "楽天市場で商品を検索",

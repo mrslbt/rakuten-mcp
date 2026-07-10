@@ -6,12 +6,12 @@
     "url": "https://github.com/mrslbt/rakuten-mcp",
     "source": "github"
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "rakuten-mcp",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "transport": {
         "type": "stdio"
       }

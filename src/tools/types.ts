@@ -22,6 +22,8 @@ export interface ToolDefinition<TInput extends ToolInputSchema = ToolInputSchema
   inputSchema: TInput;
   /** Handler receives validated input and the loaded config. Returns the response body. */
   handler: (input: z.infer<TInput>, config: Config) => Promise<unknown>;
+  /** Optional MCP Apps UI: links this tool to a ui:// resource rendered by App hosts. */
+  ui?: { resourceUri: string };
 }
 
 export interface PromptDefinition {

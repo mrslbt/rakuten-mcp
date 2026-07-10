@@ -3,7 +3,9 @@
  * configured McpServer instance.
  */
 
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 import { tryLoadConfig } from "./config.js";
 import { RakutenError } from "./errors.js";
@@ -13,7 +15,7 @@ import { tools } from "./tools/index.js";
 import { READONLY, withParamTitles } from "./tools/meta.js";
 
 const SERVER_NAME = "rakuten-mcp";
-const SERVER_VERSION = "1.1.0";
+const SERVER_VERSION = "1.2.0";
 
 const SERVER_INSTRUCTIONS = `rakuten-mcp exposes the public Rakuten Web Service as MCP tools across six families: Ichiba (e-commerce), Books, Travel (hotels), Recipe, Kobo (eBooks), and GORA (golf).
 
@@ -39,7 +41,8 @@ export function buildServer(): McpServer {
     resources?: Record<string, unknown>;
   } = { tools: {} };
   if (prompts.length > 0) capabilities.prompts = {};
-  if (resources.length > 0) capabilities.resources = {};
+  // Advertise resources when static resources exist OR any tool ships an MCP Apps UI.
+  if (resources.length > 0 || tools.some((t) => t.ui)) capabilities.resources = {};
 
   const server = new McpServer(
     {
@@ -61,6 +64,7 @@ export function buildServer(): McpServer {
         description: `${tool.description.en}\n\n[JA] ${tool.description.ja}`,
         inputSchema: withParamTitles(tool.inputSchema.shape),
         annotations: READONLY,
+        ...(tool.ui ? { _meta: { ui: { resourceUri: tool.ui.resourceUri } } } : {}),
       },
       async (rawArgs: unknown) => {
         try {
@@ -82,6 +86,10 @@ export function buildServer(): McpServer {
           const result = await tool.handler(parsed, config);
           return {
             content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+            // For MCP Apps hosts: same payload, structured, for the UI iframe.
+            ...(tool.ui && result && typeof result === "object"
+              ? { structuredContent: result as Record<string, unknown> }
+              : {}),
           };
         } catch (err) {
           if (err instanceof RakutenError) {
@@ -102,6 +110,40 @@ export function buildServer(): McpServer {
           };
         }
       },
+    );
+  }
+
+  // MCP Apps: single-file UI (built by Vite to dist/ui/index.html) served as
+  // a ui:// resource. Hosts that support MCP Apps render it in a sandboxed
+  // iframe; text-only hosts ignore it and use the text content as before.
+  if (tools.some((t) => t.ui)) {
+    const ITEM_SEARCH_UI_URI = "ui://rakuten-mcp/item-search";
+    registerAppResource(
+      server,
+      "Rakuten Item Search UI",
+      ITEM_SEARCH_UI_URI,
+      {
+        description: "Product-card grid for ichiba_item_search results",
+        mimeType: RESOURCE_MIME_TYPE,
+        _meta: {
+          ui: {
+            csp: {
+              // Rakuten image CDNs (thumbnails in mediumImageUrls).
+              resourceDomains: [
+                "https://thumbnail.image.rakuten.co.jp",
+                "https://shop.r10s.jp",
+                "https://image.rakuten.co.jp",
+                "https://r.r10s.jp",
+              ],
+            },
+          },
+        },
+      },
+      async () => ({
+        contents: [
+          { uri: ITEM_SEARCH_UI_URI, mimeType: RESOURCE_MIME_TYPE, text: loadUiHtml() },
+        ],
+      }),
     );
   }
 
@@ -177,3 +219,27 @@ export function buildServer(): McpServer {
 }
 
 export { SERVER_NAME, SERVER_VERSION };
+
+let uiHtmlCache: string | undefined;
+
+/**
+ * Load the built single-file UI. In the published package it sits next to the
+ * bundled server at dist/ui/index.html; when running from source via tsx it
+ * resolves ../dist/ui/index.html (requires `npm run build` first).
+ */
+function loadUiHtml(): string {
+  if (uiHtmlCache) return uiHtmlCache;
+  const candidates = [
+    new URL("./ui/index.html", import.meta.url),
+    new URL("../dist/ui/index.html", import.meta.url),
+  ];
+  for (const url of candidates) {
+    try {
+      uiHtmlCache = readFileSync(url, "utf8");
+      return uiHtmlCache;
+    } catch {
+      // try next
+    }
+  }
+  return "<!doctype html><html><body><p>rakuten-mcp UI bundle missing — run `npm run build`.</p></body></html>";
+}
