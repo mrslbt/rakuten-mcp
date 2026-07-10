@@ -191,7 +191,7 @@ export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
     "楽天市場で商品を検索",
   ),
   description: bilingual(
-    "Search products on Rakuten Ichiba (Japan's largest e-commerce marketplace) by keyword. Supports price range filtering, sorting by review count/average/price, and restricting results to a specific genre or shop. Returns a paginated list of items with prices, review stats, images, and direct purchase URLs.",
+    "Search products on Rakuten Ichiba (Japan's largest e-commerce marketplace) by keyword. Prefer JAPANESE keywords — English keywords match far fewer listings (translate the user's query to Japanese first). Supports price range filtering, sorting by review count/average/price, and restricting results to a specific genre or shop. Returns a paginated list of items with prices, review stats, images, and direct purchase URLs.",
     "楽天市場(日本最大のEコマースモール)で商品をキーワード検索します。価格範囲フィルタ、レビュー数/平均/価格による並び替え、ジャンルや店舗での絞り込みに対応。価格、レビュー、画像、購入URLを含む商品一覧をページング形式で返します。",
   ),
   inputSchema: itemSearchInput,

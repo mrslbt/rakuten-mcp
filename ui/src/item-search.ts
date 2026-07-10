@@ -40,8 +40,43 @@ interface SearchResult {
   items: IchibaItem[];
 }
 
+// UI chrome strings — product data stays in the seller's language; only the
+// labels we own are localized. Locale arrives via host context (BCP 47).
+const STRINGS = {
+  ja: {
+    searching: (k: string) => (k ? `「${k}」を検索中…` : "検索中…"),
+    results: (count: string, from: number, to: number) => `${count}件中 ${from}–${to}件`,
+    page: (p: number, n: number) => `p.${p}/${n}`,
+    noResults: (k: string) => `「${k}」の検索結果はありません`,
+    noData: "データがありません。テキスト結果は会話内で確認できます。",
+    taxIncl: "税込",
+    taxExcl: "税別",
+    freeShip: "送料込",
+    points: (r: number) => `P${r}倍`,
+    noReviews: "レビューなし",
+    footer: "楽天市場 · 価格表記は商品ごとの注記に従います",
+  },
+  en: {
+    searching: (k: string) => (k ? `Searching for “${k}”…` : "Searching Rakuten…"),
+    results: (count: string, from: number, to: number) => `${from}–${to} of ${count} results`,
+    page: (p: number, n: number) => `page ${p}/${n}`,
+    noResults: (k: string) => `No results for “${k}”`,
+    noData: "No data returned. The text result is still available in the conversation.",
+    taxIncl: "tax incl.",
+    taxExcl: "tax excl.",
+    freeShip: "Free shipping",
+    points: (r: number) => `${r}× points`,
+    noReviews: "No reviews",
+    footer: "Rakuten Ichiba · price notes vary per item",
+  },
+} as const;
+
+let lang: keyof typeof STRINGS = "ja";
+const t = () => STRINGS[lang];
+
 const root = document.getElementById("root")!;
 let keyword = "";
+let lastData: SearchResult | null = null;
 
 const app = new App({ name: "Rakuten Item Search", version: "1.0.0" });
 
@@ -54,17 +89,25 @@ app.ontoolinput = (params) => {
 app.ontoolresult = (result) => {
   const data = extractResult(result);
   if (!data) {
-    renderEmpty("No data returned. The text result is still available in the conversation.");
+    renderEmpty(t().noData);
     return;
   }
   if (!data.items?.length) {
-    renderEmpty(`No results for 「${keyword}」`);
+    renderEmpty(t().noResults(keyword));
     return;
   }
+  lastData = data;
   renderGrid(data);
 };
 
 app.onhostcontextchanged = (ctx) => {
+  if (ctx.locale) {
+    const next = ctx.locale.toLowerCase().startsWith("ja") ? "ja" : "en";
+    if (next !== lang) {
+      lang = next;
+      if (lastData) renderGrid(lastData);
+    }
+  }
   if (ctx.theme) applyDocumentTheme(ctx.theme);
   if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
   if (ctx.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
@@ -100,7 +143,7 @@ function renderSkeleton(hits: number): void {
   root.innerHTML = `
     <div class="wrap">
       <header class="head">
-        <span class="head-title">${keyword ? `「${esc(keyword)}」を検索中…` : "Searching Rakuten…"}</span>
+        <span class="head-title">${esc(t().searching(keyword))}</span>
       </header>
       <div class="grid">
         ${Array.from({ length: n }, () => `<div class="card skeleton"><div class="thumb"></div><div class="body"><div class="line w80"></div><div class="line w50"></div><div class="line w60"></div></div></div>`).join("")}
@@ -125,12 +168,12 @@ function renderGrid(data: SearchResult): void {
     <div class="wrap">
       <header class="head">
         <span class="head-title">「${esc(keyword)}」</span>
-        <span class="head-meta">${data.count.toLocaleString("ja-JP")}件中 ${shownFrom}–${shownTo}件${data.pageCount > 1 ? ` · p.${data.page}/${data.pageCount}` : ""}</span>
+        <span class="head-meta">${t().results(data.count.toLocaleString("ja-JP"), shownFrom, shownTo)}${data.pageCount > 1 ? ` · ${t().page(data.page, data.pageCount)}` : ""}</span>
       </header>
       <div class="grid">
         ${data.items.map(card).join("")}
       </div>
-      <footer class="foot">Rakuten Ichiba · prices include applicable notes per item</footer>
+      <footer class="foot">${esc(t().footer)}</footer>
     </div>`;
 
   // Broken/expired image URLs fall back to the placeholder mark.
@@ -161,8 +204,8 @@ function renderGrid(data: SearchResult): void {
 function card(item: IchibaItem): string {
   const rating = Number(item.reviewAverage) || 0;
   const badges: string[] = [];
-  if (item.postageFlag === 0) badges.push(`<span class="badge badge-ship">送料込</span>`);
-  if (item.pointRate > 1) badges.push(`<span class="badge badge-point">P${item.pointRate}倍</span>`);
+  if (item.postageFlag === 0) badges.push(`<span class="badge badge-ship">${esc(t().freeShip)}</span>`);
+  if (item.pointRate > 1) badges.push(`<span class="badge badge-point">${esc(t().points(item.pointRate))}</span>`);
 
   return `
     <article class="card" data-url="${esc(item.itemUrl)}" tabindex="0" role="link" aria-label="${esc(item.itemName)}">
@@ -172,11 +215,11 @@ function card(item: IchibaItem): string {
       </div>
       <div class="body">
         <h3 class="name" lang="ja">${esc(item.itemName)}</h3>
-        <div class="price"><span class="yen">¥</span>${item.itemPrice.toLocaleString("ja-JP")}<span class="tax">${item.taxFlag === 1 ? "税別" : "税込"}</span></div>
+        <div class="price"><span class="yen">¥</span>${item.itemPrice.toLocaleString("ja-JP")}<span class="tax">${esc(item.taxFlag === 1 ? t().taxExcl : t().taxIncl)}</span></div>
         ${
           item.reviewCount > 0
             ? `<div class="review"><span class="stars" style="--r:${(rating / 5) * 100}%">★★★★★</span><span class="rcount">${rating.toFixed(1)} (${item.reviewCount.toLocaleString("ja-JP")})</span></div>`
-            : `<div class="review review-none">レビューなし</div>`
+            : `<div class="review review-none">${esc(t().noReviews)}</div>`
         }
         <div class="shop" lang="ja">${esc(item.shopName)}</div>
       </div>

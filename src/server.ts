@@ -15,7 +15,7 @@ import { tools } from "./tools/index.js";
 import { READONLY, withParamTitles } from "./tools/meta.js";
 
 const SERVER_NAME = "rakuten-mcp";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.2.1";
 
 const SERVER_INSTRUCTIONS = `rakuten-mcp exposes the public Rakuten Web Service as MCP tools across six families: Ichiba (e-commerce), Books, Travel (hotels), Recipe, Kobo (eBooks), and GORA (golf).
 
