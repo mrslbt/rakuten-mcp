@@ -133,6 +133,16 @@ function renderGrid(data: SearchResult): void {
       <footer class="foot">Rakuten Ichiba · prices include applicable notes per item</footer>
     </div>`;
 
+  // Broken/expired image URLs fall back to the placeholder mark.
+  root.querySelectorAll<HTMLImageElement>(".thumb img").forEach((img) => {
+    img.addEventListener("error", () => {
+      const ph = document.createElement("div");
+      ph.className = "noimg";
+      ph.textContent = "楽";
+      img.replaceWith(ph);
+    });
+  });
+
   root.querySelectorAll<HTMLElement>("[data-url]").forEach((el) => {
     el.addEventListener("click", () => {
       const url = el.dataset.url;
