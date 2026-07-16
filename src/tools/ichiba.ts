@@ -23,6 +23,7 @@ import { z } from "zod";
 import { HOST_OPENAPI } from "../config.js";
 import { rakutenRequest } from "../client.js";
 import { bilingual } from "../i18n.js";
+import { PRODUCT_LIST_TEMPLATE, PRODUCT_LIST_URI } from "../ui/product-list.template.js";
 import type { ToolDefinition } from "./types.js";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -183,18 +184,61 @@ function mapItem(raw: RawItem): IchibaItem {
   };
 }
 
+/**
+ * Map a search result to the product-list widget contract (mcp-apps-ui).
+ * Returns null for empty results — no widget beats an empty widget.
+ */
+function toProductListData(
+  result: IchibaItemSearchResult,
+  input: z.infer<typeof itemSearchInput>,
+) {
+  if (result.items.length === 0) return null;
+  const taxExcluded = result.items.some((i) => i.taxFlag === 1);
+  return {
+    query: input.keyword,
+    source: "Rakuten",
+    total_count: result.count,
+    currency: "JPY",
+    footnote: taxExcluded ? "Some prices excl. tax" : "Prices incl. tax",
+    items: result.items.map((i) => {
+      const avg =
+        typeof i.reviewAverage === "string" ? Number(i.reviewAverage) : i.reviewAverage;
+      return {
+        name: i.itemName,
+        url: i.itemUrl || undefined,
+        // Rakuten image URLs carry a size in the query (?_ex=128x128);
+        // request 300x300 for the widget's plates and mosaic.
+        image: i.imageUrl ? `${i.imageUrl.split("?")[0]}?_ex=300x300` : undefined,
+        price: i.itemPrice,
+        seller: i.shopName || undefined,
+        ...(i.reviewCount > 0 ? { rating: { avg, count: i.reviewCount } } : {}),
+        ...(i.availability !== 1 ? { note: "May be out of stock" } : {}),
+      };
+    }),
+  };
+}
+
 export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
   name: "ichiba_item_search",
-  ui: { resourceUri: "ui://rakuten-mcp/item-search" },
   title: bilingual(
     "Search Rakuten Ichiba Products",
     "楽天市場で商品を検索",
   ),
   description: bilingual(
-    "Search products on Rakuten Ichiba (Japan's largest e-commerce marketplace) by keyword. Prefer JAPANESE keywords — English keywords match far fewer listings (translate the user's query to Japanese first). Supports price range filtering, sorting by review count/average/price, and restricting results to a specific genre or shop. Returns a paginated list of items with prices, review stats, images, and direct purchase URLs.",
+    "Search products on Rakuten Ichiba (Japan's largest e-commerce marketplace) by keyword. Supports price range filtering, sorting by review count/average/price, and restricting results to a specific genre or shop. Returns a paginated list of items with prices, review stats, images, and direct purchase URLs.",
     "楽天市場(日本最大のEコマースモール)で商品をキーワード検索します。価格範囲フィルタ、レビュー数/平均/価格による並び替え、ジャンルや店舗での絞り込みに対応。価格、レビュー、画像、購入URLを含む商品一覧をページング形式で返します。",
   ),
   inputSchema: itemSearchInput,
+  ui: {
+    uri: PRODUCT_LIST_URI,
+    title: bilingual("Product results", "商品検索結果"),
+    template: PRODUCT_LIST_TEMPLATE,
+    map: (result, input) =>
+      toProductListData(
+        result as IchibaItemSearchResult,
+        input as z.infer<typeof itemSearchInput>,
+      ),
+  },
   async handler(args, config) {
     const params: Record<string, string> = {
       keyword: args.keyword,

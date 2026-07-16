@@ -22,8 +22,28 @@ export interface ToolDefinition<TInput extends ToolInputSchema = ToolInputSchema
   inputSchema: TInput;
   /** Handler receives validated input and the loaded config. Returns the response body. */
   handler: (input: z.infer<TInput>, config: Config) => Promise<unknown>;
-  /** Optional MCP Apps UI: links this tool to a ui:// resource rendered by App hosts. */
-  ui?: { resourceUri: string };
+  /**
+   * Optional MCP Apps (SEP-1865) widget. Handlers stay pure; presentation is
+   * applied at the server edge. When set, the server registers the `ui://`
+   * resource, links it via `_meta.ui.resourceUri`, and appends the rendered
+   * widget to the tool result for MCP Apps hosts. Non-Apps clients still get
+   * the JSON text block.
+   */
+  ui?: ToolUiDefinition;
+}
+
+export interface ToolUiDefinition {
+  /** The `ui://` identifier, e.g. "ui://rakuten/product-list". */
+  uri: string;
+  /** Bilingual widget name for resource listings. */
+  title: Bilingual;
+  /** Self-contained component HTML (vendored from the mcp-apps-ui kit). */
+  template: string;
+  /**
+   * Map the handler's result body to the component's data contract.
+   * Return null to skip the widget for this call (e.g. empty results).
+   */
+  map: (result: unknown, input: unknown) => unknown | null;
 }
 
 export interface PromptDefinition {

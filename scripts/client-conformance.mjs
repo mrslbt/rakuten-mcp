@@ -7,8 +7,10 @@
  * Validates:
  *   1. initialize handshake + capability advertisement
  *   2. tools/list — every tool has a valid JSON Schema (clients refuse load otherwise)
- *   3. prompts/list — empty registry returns cleanly, not a crash
- *   4. resources/list — same
+ *   3. prompts/list — registered prompts are enumerable
+ *   4. resources/list + read — docs resources AND the MCP Apps ui:// widget;
+ *      ichiba_item_search links it via _meta.ui.resourceUri, and the live
+ *      happy-path call must return the rendered widget block
  *   5. tools/call with INVALID input — Zod path returns isError:true (not crash)
  *   6. tools/call with VALID input — happy path returns JSON content
  *   7. tools/call WITHOUT auth env — config error path returns isError:true
@@ -109,21 +111,22 @@ async function phaseA() {
       `${init.result.serverInfo.name} v${init.result.serverInfo.version}`,
     );
 
-    // Verify advertised capabilities
+    // Verify advertised capabilities. Prompts and resources registries are
+    // populated (and MCP Apps ui:// widgets require the resources capability),
+    // so both MUST be advertised — the inverse of the old empty-registry
+    // assertion this script made before prompts/resources existed.
     const caps = init.result.capabilities ?? {};
     if (!caps.tools) fail("capabilities.tools", "missing");
     else pass("capabilities advertise tools");
-    // prompts/resources should NOT be advertised when registries are empty —
-    // doing so causes "Method not found" errors from clients on /list calls.
-    if (caps.prompts !== undefined) {
-      fail("capabilities.prompts", "advertised but registry is empty");
+    if (caps.prompts === undefined) {
+      fail("capabilities.prompts", "not advertised but prompts are registered");
     } else {
-      pass("prompts capability correctly NOT advertised (empty registry)");
+      pass("prompts capability advertised");
     }
-    if (caps.resources !== undefined) {
-      fail("capabilities.resources", "advertised but registry is empty");
+    if (caps.resources === undefined) {
+      fail("capabilities.resources", "not advertised but resources + ui:// widgets are registered");
     } else {
-      pass("resources capability correctly NOT advertised (empty registry)");
+      pass("resources capability advertised");
     }
 
     // Verify server instructions present (Claude Desktop surfaces these)
@@ -176,28 +179,52 @@ async function phaseA() {
       pass("every tool has bilingual [JA] description");
     }
 
-    // 3. prompts/list — since we don't advertise the capability, real clients
-    //    won't call this. But a misbehaving one might; verify we return
-    //    "Method not found" cleanly (not a crash).
+    // 3. prompts/list — registry is populated; must return at least one prompt.
     send(child, { jsonrpc: "2.0", id: 3, method: "prompts/list" });
     const plist = await awaitResp(responses, 3);
-    if (plist.error?.code === -32601) {
-      pass("prompts/list returns -32601 (capability not advertised, correct)");
-    } else if (Array.isArray(plist.result?.prompts)) {
-      pass("prompts/list returns empty array", `${plist.result.prompts.length} prompts`);
+    if (Array.isArray(plist.result?.prompts) && plist.result.prompts.length > 0) {
+      pass("prompts/list returns prompts", `${plist.result.prompts.length} prompts`);
     } else {
       fail("prompts/list", `unexpected response: ${JSON.stringify(plist).slice(0, 150)}`);
     }
 
-    // 4. resources/list — same
+    // 4. resources/list — must include the MCP Apps ui:// widget.
     send(child, { jsonrpc: "2.0", id: 4, method: "resources/list" });
     const rlist = await awaitResp(responses, 4);
-    if (rlist.error?.code === -32601) {
-      pass("resources/list returns -32601 (capability not advertised, correct)");
-    } else if (Array.isArray(rlist.result?.resources)) {
-      pass("resources/list returns empty array", `${rlist.result.resources.length} resources`);
-    } else {
+    const resList = rlist.result?.resources ?? [];
+    const uiRes = resList.find((r) => r.uri === "ui://rakuten/product-list");
+    if (!Array.isArray(rlist.result?.resources)) {
       fail("resources/list", `unexpected response: ${JSON.stringify(rlist).slice(0, 150)}`);
+    } else if (!uiRes) {
+      fail(
+        "resources/list ui:// widget",
+        `ui://rakuten/product-list not found among ${resList.length} resources`,
+      );
+    } else if (uiRes.mimeType !== "text/html") {
+      fail("ui:// resource mimeType", `expected text/html, got ${uiRes.mimeType}`);
+    } else {
+      pass(
+        "resources/list includes ui://rakuten/product-list",
+        `${resList.length} resources total`,
+      );
+    }
+
+    // 4b. resources/read the widget — hosts preload this before the tool runs.
+    send(child, { jsonrpc: "2.0", id: 41, method: "resources/read", params: { uri: "ui://rakuten/product-list" } });
+    const rread = await awaitResp(responses, 41);
+    const uiDoc = rread.result?.contents?.[0]?.text ?? "";
+    if (uiDoc.includes("mau-productlist") && uiDoc.includes("__MAU_AWAIT__")) {
+      pass("resources/read returns the widget document (loading state)");
+    } else {
+      fail("resources/read widget", `unexpected document: ${JSON.stringify(rread).slice(0, 150)}`);
+    }
+
+    // 4c. ichiba_item_search must advertise its widget via _meta.ui.resourceUri.
+    const searchTool = tools.find((t) => t.name === "ichiba_item_search");
+    if (searchTool?._meta?.ui?.resourceUri === "ui://rakuten/product-list") {
+      pass("ichiba_item_search links its widget via _meta.ui.resourceUri");
+    } else {
+      fail("ichiba_item_search _meta.ui", `got ${JSON.stringify(searchTool?._meta)}`);
     }
 
     // 5. tools/call with INVALID input — should return isError:true, not crash
@@ -247,6 +274,22 @@ async function phaseA() {
         }
         if (data && typeof data.count === "number") {
           pass("valid-input happy path", `count=${data.count}`);
+        }
+        // MCP Apps: a non-empty result must carry the rendered widget block
+        // with baked data, plus the result-level _meta.ui link.
+        const widget = (goodResp.result.content ?? []).find(
+          (c) => c.type === "resource" && c.resource?.uri === "ui://rakuten/product-list",
+        );
+        if (data && Array.isArray(data.items) && data.items.length > 0) {
+          if (!widget) {
+            fail("widget content block", "no ui:// resource block on non-empty result");
+          } else if (!widget.resource.text?.includes("__MAU_DATA__")) {
+            fail("widget content block", "resource missing baked data");
+          } else if (goodResp.result?._meta?.ui?.resourceUri !== "ui://rakuten/product-list") {
+            fail("widget result _meta", "missing _meta.ui.resourceUri on result");
+          } else {
+            pass("widget block + baked data + result _meta.ui", `${widget.resource.text.length} chars`);
+          }
         }
       }
     } else {

@@ -5,6 +5,3 @@ dist/
 # mcp-publisher auth tokens
 .mcpregistry_github_token
 .mcpregistry_registry_token
-
-# local test artifacts
-*.log

@@ -1,6 +1,6 @@
 {
   "name": "rakuten-mcp",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "mcpName": "io.github.mrslbt/rakuten-mcp",
   "description": "MCP server for Rakuten Web Service: 28 read-only tools across Ichiba, Books, Travel, Recipe, Kobo, and GORA. Bilingual EN/JA tool descriptions.",
   "type": "module",
@@ -25,11 +25,9 @@
     "lint": "tsc --noEmit",
     "dev:stdio": "tsx src/index.ts",
     "dev:http": "tsx src/index.ts --http 3000",
-    "build": "npm run build:server && npm run build:ui",
+    "build": "tsup src/index.ts --format esm --target node20 --clean --shims",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build",
-    "build:server": "tsup src/index.ts --format esm --target node20 --clean --shims",
-    "build:ui": "vite build"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
@@ -62,7 +60,6 @@
     "url": "https://github.com/mrslbt/rakuten-mcp/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },
@@ -73,8 +70,6 @@
     "tsup": "^8.5.1",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
-    "vite": "^8.1.4",
-    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.8"
   }
 }
