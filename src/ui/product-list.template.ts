@@ -1,7 +1,7 @@
 /*
  * VENDORED from the mcp-apps-ui kit — components/product-list/product-list.html
- * Do not edit here; edit in the kit and re-vendor. Copy-paste-and-own is the
- * model, so this file is intentionally a checked-in copy, not a dependency.
+ * Do not edit here; edit in the kit (or your fork of the file) and re-vendor.
+ * Copy-paste-and-own is the model: this file is a checked-in copy, not a dependency.
  */
 export const PRODUCT_LIST_URI = "ui://rakuten/product-list";
 
@@ -211,8 +211,17 @@ export const PRODUCT_LIST_TEMPLATE = `<!--
       : "";
     return '<div class="mau-thumb">' + (chip || "") + img + "</div>";
   }
-  function linkOpen(item) { return item.url ? '<a class="mau-link" href="' + esc(item.url) + '" target="_blank" rel="noopener">' : ""; }
-  function linkClose(item) { return item.url ? "</a>" : ""; }
+  /* Links render only for http(s) URLs. Anything else (javascript:, data:,
+     relative paths) renders as plain text — widget data is not trusted input. */
+  function safeUrl(item) {
+    var u = String(item.url || "");
+    return /^https?:\\/\\//i.test(u) ? u : "";
+  }
+  function linkOpen(item) {
+    var u = safeUrl(item);
+    return u ? '<a class="mau-link" href="' + esc(u) + '" target="_blank" rel="noopener">' : "";
+  }
+  function linkClose(item) { return safeUrl(item) ? "</a>" : ""; }
 
   var SAMPLE = {
     query: "coffee dripper",

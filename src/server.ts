@@ -94,6 +94,7 @@ export function buildServer(): McpServer {
                 uri: tool.ui.uri,
                 template: tool.ui.template,
                 data,
+                csp: tool.ui.csp,
               });
               return {
                 content: [
@@ -203,11 +204,12 @@ export function buildServer(): McpServer {
   // tool's _meta.ui.resourceUri link.
   for (const tool of tools) {
     if (!tool.ui) continue;
-    const staticDoc = renderComponent({
+    const staticRender = renderComponent({
       uri: tool.ui.uri,
       template: tool.ui.template,
       data: null,
-    }).staticHtml;
+      csp: tool.ui.csp,
+    });
     server.registerResource(
       tool.ui.title.en,
       tool.ui.uri,
@@ -215,9 +217,17 @@ export function buildServer(): McpServer {
         title: tool.ui.title.en,
         description: `Interactive MCP Apps widget for ${tool.name}.\n\n[JA] ${tool.name} の MCP Apps ウィジェット。`,
         mimeType: "text/html",
+        ...(staticRender.registrationMeta ? { _meta: staticRender.registrationMeta } : {}),
       },
       async (uri: URL) => ({
-        contents: [{ uri: uri.href, mimeType: "text/html", text: staticDoc }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/html",
+            text: staticRender.staticHtml,
+            ...(staticRender.registrationMeta ? { _meta: staticRender.registrationMeta } : {}),
+          },
+        ],
       }),
     );
   }

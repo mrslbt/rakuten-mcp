@@ -40,6 +40,12 @@ export interface ToolUiDefinition {
   /** Self-contained component HTML (vendored from the mcp-apps-ui kit). */
   template: string;
   /**
+   * External origins the widget loads assets from (product image CDNs).
+   * Declared on the ui:// resource as `_meta.ui.csp` so strict hosts allow
+   * the loads instead of rendering empty plates.
+   */
+  csp?: { resourceDomains?: string[]; connectDomains?: string[] };
+  /**
    * Map the handler's result body to the component's data contract.
    * Return null to skip the widget for this call (e.g. empty results).
    */

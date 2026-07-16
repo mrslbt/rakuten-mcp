@@ -2,6 +2,32 @@
 
 All notable changes to `rakuten-mcp`. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [1.2.2] — 2026-07-13
+
+### Changed
+
+- **MCP Apps UI now ships from the [mcp-apps-ui](https://github.com/mrslbt/mcp-apps-ui) kit** — one self-contained HTML product-list component vendored to `src/ui/`, replacing the 1.2.0 Vite + `@modelcontextprotocol/ext-apps` build. No build step, no UI dependencies. Handlers stay pure: the tool declares a `ui` block and the server edge renders it.
+- Widget links are http(s)-only — non-web URL schemes in item data render as plain text.
+- Ratings with a non-numeric `reviewAverage` are omitted instead of rendering NaN.
+- Conformance script extended with MCP Apps checks, including a live assertion that a non-empty search returns the widget block with baked data.
+
+### Added
+
+- Rakuten image CDNs declared on the `ui://` resource via `_meta.ui.csp` (`thumbnail.image.rakuten.co.jp`, `shop.r10s.jp`, `image.rakuten.co.jp`) so strict MCP Apps hosts load product thumbnails.
+
+### Removed
+
+- `ui/` Vite source, `vite.config.ts`, and the `@modelcontextprotocol/ext-apps` / `vite` / `vite-plugin-singlefile` dependencies.
+
+## [1.2.0] / [1.2.1] — 2026-07-10
+
+Entries written retroactively; these versions shipped without changelog notes.
+
+### Added
+
+- **1.2.0** — first MCP Apps UI for `ichiba_item_search`: a product-card grid built with Vite + `@modelcontextprotocol/ext-apps` (superseded by 1.2.2's kit-based component).
+- **1.2.1** — locale-aware widget chrome, Japanese-keyword hint, and an image-error placeholder fallback.
+
 ## [1.1.0] — 2026-06-06
 
 Quality + discoverability pass. No tool behavior changed — all 28 tools and their endpoints are unchanged.

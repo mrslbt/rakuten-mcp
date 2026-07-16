@@ -45,6 +45,11 @@ export interface RenderResult {
   toolMeta: { ui: { resourceUri: string; preferredSize?: { width?: number; height?: number } } };
   /** Merge into the tool *result*'s `_meta` — some hosts read the template link here too. */
   resultMeta: Record<string, unknown>;
+  /**
+   * Merge into the static ui:// resource's registration `_meta` (csp,
+   * permissions). Undefined when no csp was declared.
+   */
+  registrationMeta?: Record<string, unknown>;
 }
 
 export interface RenderOptions {
@@ -58,6 +63,12 @@ export interface RenderOptions {
   theme?: "light" | "dark";
   /** Optional preferred iframe size the host may honor. */
   preferredSize?: { width?: number; height?: number };
+  /**
+   * External origins the widget loads assets from (product images etc).
+   * Hosts enforce a strict CSP on the iframe; declare image CDNs here or
+   * strict hosts render empty plates. Maps to the resource's `_meta.ui.csp`.
+   */
+  csp?: { resourceDomains?: string[]; connectDomains?: string[] };
 }
 
 const DOC_HEAD =
@@ -97,7 +108,7 @@ function wrapDocument(inner: string, bootScript: string): string {
  * <script> (baked data for the inline doc, an await flag for the static doc).
  */
 export function renderComponent(opts: RenderOptions): RenderResult {
-  const { uri, template, data, theme, preferredSize } = opts;
+  const { uri, template, data, theme, preferredSize, csp } = opts;
 
   const themeLine = theme ? `window.__MAU_THEME__=${safeJson(theme)};` : "";
   const bakedScript =
@@ -107,9 +118,15 @@ export function renderComponent(opts: RenderOptions): RenderResult {
   const html = wrapDocument(template, bakedScript);
   const staticHtml = wrapDocument(template, awaitScript);
 
-  const resourceMeta = preferredSize
-    ? { "mcpui.dev/ui-preferred-frame-size": [preferredSize.width, preferredSize.height] }
-    : undefined;
+  const resourceMeta: Record<string, unknown> = {};
+  if (preferredSize) {
+    resourceMeta["mcpui.dev/ui-preferred-frame-size"] = [preferredSize.width, preferredSize.height];
+  }
+  if (csp) {
+    resourceMeta["ui"] = { csp };
+  }
+  const hasResourceMeta = Object.keys(resourceMeta).length > 0;
+  const registrationMeta = csp ? { ui: { csp } } : undefined;
 
   return {
     uri,
@@ -121,10 +138,11 @@ export function renderComponent(opts: RenderOptions): RenderResult {
         uri,
         mimeType: "text/html",
         text: html,
-        ...(resourceMeta ? { _meta: resourceMeta } : {}),
+        ...(hasResourceMeta ? { _meta: resourceMeta } : {}),
       },
     },
     toolMeta: { ui: { resourceUri: uri, ...(preferredSize ? { preferredSize } : {}) } },
     resultMeta: { ui: { resourceUri: uri } },
+    registrationMeta,
   };
 }

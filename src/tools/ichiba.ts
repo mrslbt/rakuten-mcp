@@ -211,7 +211,10 @@ function toProductListData(
         image: i.imageUrl ? `${i.imageUrl.split("?")[0]}?_ex=300x300` : undefined,
         price: i.itemPrice,
         seller: i.shopName || undefined,
-        ...(i.reviewCount > 0 ? { rating: { avg, count: i.reviewCount } } : {}),
+        // Guard NaN: reviewAverage arrives as a string on some endpoints.
+        ...(i.reviewCount > 0 && Number.isFinite(avg)
+          ? { rating: { avg, count: i.reviewCount } }
+          : {}),
         ...(i.availability !== 1 ? { note: "May be out of stock" } : {}),
       };
     }),
@@ -233,6 +236,15 @@ export const ichibaItemSearchTool: ToolDefinition<typeof itemSearchInput> = {
     uri: PRODUCT_LIST_URI,
     title: bilingual("Product results", "商品検索結果"),
     template: PRODUCT_LIST_TEMPLATE,
+    // Rakuten serves product thumbnails from these CDNs; strict MCP Apps
+    // hosts block undeclared origins.
+    csp: {
+      resourceDomains: [
+        "https://thumbnail.image.rakuten.co.jp",
+        "https://shop.r10s.jp",
+        "https://image.rakuten.co.jp",
+      ],
+    },
     map: (result, input) =>
       toProductListData(
         result as IchibaItemSearchResult,
